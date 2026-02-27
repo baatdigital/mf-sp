@@ -109,6 +109,41 @@ export const ENTRY_ROUTES: Routes = [
                 (m) => m.DlqPageComponent,
               ),
           },
+          // ─── BillPay Admin (EP-SP-025, EP-SP-026) ──────────────────────────────
+          {
+            path: 'billpay/providers',
+            title: 'Proveedores BillPay | SuperPago Admin',
+            loadComponent: () =>
+              import(
+                '../presentation/pages/admin/billpay-providers/billpay-providers-page.component'
+              ).then((m) => m.BillPayProvidersPageComponent),
+          },
+          {
+            path: 'billpay/reconciliation',
+            title: 'Conciliacion BillPay | SuperPago Admin',
+            loadComponent: () =>
+              import(
+                '../presentation/pages/admin/billpay-reconciliation/billpay-reconciliation-page.component'
+              ).then((m) => m.BillPayReconciliationPageComponent),
+          },
+          // ─── Cash & Auction Config (EP-SP-020) ────────────────────────────────
+          {
+            path: 'cash-config',
+            title: 'Config Cash & Subasta | SuperPago Admin',
+            loadComponent: () =>
+              import(
+                '../presentation/pages/admin/cash-config/cash-config-page.component'
+              ).then((m) => m.CashConfigPageComponent),
+          },
+          // ─── Notifications SSE Dashboard (EP-SP-030) ────────────────────────────
+          {
+            path: 'notifications',
+            title: 'Notificaciones | SuperPago Admin',
+            loadComponent: () =>
+              import(
+                '../presentation/pages/admin/notifications/notifications-dashboard.component'
+              ).then((m) => m.NotificationsDashboardComponent),
+          },
         ],
       },
 
@@ -220,6 +255,15 @@ export const ENTRY_ROUTES: Routes = [
                 (m) => m.SettingsPageComponent,
               ),
           },
+          // ─── BillPay Empresa (EP-SP-027) ────────────────────────────────
+          {
+            path: 'billpay',
+            title: 'Pago de Servicios | SuperPago Empresa',
+            loadComponent: () =>
+              import('../presentation/pages/business/billpay/billpay-page.component').then(
+                (m) => m.BillPayPageComponent,
+              ),
+          },
         ],
       },
 
@@ -266,6 +310,15 @@ export const ENTRY_ROUTES: Routes = [
               import('../presentation/pages/personal/account/personal-account.component').then(
                 (m) => m.PersonalAccountComponent,
               ),
+          },
+          // ─── Pago de Servicios Personal (EP-SP-028) ────────────────────────
+          {
+            path: 'services',
+            title: 'Pago de Servicios | SuperPago',
+            loadComponent: () =>
+              import(
+                '../presentation/pages/personal/services/services-page.component'
+              ).then((m) => m.ServicesPageComponent),
           },
         ],
       },
