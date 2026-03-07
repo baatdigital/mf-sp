@@ -230,11 +230,6 @@ const MOCK_PAYMENTS: BillPayReconciliationItem[] = [
                         Discrepante
                       </button>
                     }
-                    @if (item.status === 'CONFIRMED' || item.status === 'DISCREPANT') {
-                      @if (item.status === 'CONFIRMED' && item.status !== 'DISCREPANT') {
-                        <!-- solo confirmed sin accion pendiente -->
-                      }
-                    }
                   </div>
                 </td>
               </tr>

@@ -201,6 +201,3 @@ export class AccountDetailComponent {
 
   readonly movementCount = computed(() => this.movements().length);
 }
-
-// Re-export AccountCardData type for template usage
-type AccountCardData = import('../../../shared/account-detail-card/account-detail-card.component').AccountCardData;

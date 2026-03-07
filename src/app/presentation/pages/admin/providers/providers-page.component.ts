@@ -98,7 +98,7 @@ const STATUS_CONFIG: Record<ProviderStatus, { label: string; bg: string; color: 
                 <span class="sp-admin-providers__metric-label">Latencia prom.</span>
               </div>
               <div class="sp-admin-providers__metric">
-                <span class="sp-admin-providers__metric-value">${{ provider.daily_volume / 1_000_000 | number:'1.1-1' }}M</span>
+                <span class="sp-admin-providers__metric-value">{{ provider.daily_volume / 1000000 | number:'1.1-1' }}M</span>
                 <span class="sp-admin-providers__metric-label">Volumen hoy</span>
               </div>
             </div>
@@ -157,7 +157,7 @@ const STATUS_CONFIG: Record<ProviderStatus, { label: string; bg: string; color: 
                 </td>
                 <td>{{ provider.success_rate | number:'1.1-1' }}%</td>
                 <td>{{ provider.avg_latency_ms }} ms</td>
-                <td>${{ provider.daily_volume | number:'1.0-0' }}</td>
+                <td>{{ provider.daily_volume | number:'1.0-0' }}</td>
                 <td class="sp-admin-providers__cell--date">
                   {{ provider.last_sync | date:'dd/MM/yyyy HH:mm' }}
                 </td>

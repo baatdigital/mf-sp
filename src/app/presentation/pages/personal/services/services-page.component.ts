@@ -221,7 +221,7 @@ const MOCK_HISTORY: QuickHistory[] = [
                       <button
                         [class]="'sp-personal-services__amount-chip' + (monto() === amt ? ' active' : '')"
                         (click)="monto.set(amt)">
-                        ${{ amt }}
+                        {{ amt }}
                       </button>
                     }
                   </div>

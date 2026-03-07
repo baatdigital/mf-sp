@@ -91,10 +91,10 @@ import { MovementsTableComponent, Movement } from '../../../shared/movements-tab
           {{ filteredMovements().length }} movimiento{{ filteredMovements().length !== 1 ? 's' : '' }}
         </span>
         <span class="sp-business-movements__total-credit">
-          Entradas: ${{ totalCredit() | number:'1.2-2' }}
+          Entradas: {{ totalCredit() | number:'1.2-2' }}
         </span>
         <span class="sp-business-movements__total-debit">
-          Salidas: ${{ totalDebit() | number:'1.2-2' }}
+          Salidas: {{ totalDebit() | number:'1.2-2' }}
         </span>
       </div>
 
