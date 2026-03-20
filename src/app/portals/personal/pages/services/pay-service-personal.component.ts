@@ -94,7 +94,7 @@ interface PayResult {
               @if (billInfo()!.due_date) {
                 <p class="bill-due">Vence: {{ billInfo()!.due_date | date: 'dd/MM/yyyy' }}</p>
               }
-              <p class="bill-amount">${{ billInfo()!.amount | number: '1.2-2' }}</p>
+              <p class="bill-amount">\${{ billInfo()!.amount | number: '1.2-2' }}</p>
             </div>
           }
 
@@ -120,7 +120,7 @@ interface PayResult {
               @if (isPaying()) {
                 <span class="spinner-sm"></span> Procesando...
               } @else {
-                Pagar ${{ billInfo()!.amount | number: '1.2-2' }}
+                Pagar \${{ billInfo()!.amount | number: '1.2-2' }}
               }
             </button>
 
@@ -140,7 +140,7 @@ interface PayResult {
             <span class="result-icon">✅</span>
             <h2>¡Pago exitoso! 🎉</h2>
             <p class="result-service">{{ payResult()!.serviceName }}</p>
-            <p class="result-amount">${{ payResult()!.amount | number: '1.2-2' }}</p>
+            <p class="result-amount">\${{ payResult()!.amount | number: '1.2-2' }}</p>
             @if (payResult()!.folio) {
               <p class="result-folio">Folio: {{ payResult()!.folio }}</p>
             }

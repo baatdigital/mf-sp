@@ -377,6 +377,7 @@ export class NotificationPreferencesComponent implements OnInit, OnDestroy {
 
   savePreferences(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isSaving.set(true);
     this.saveError.set(null);
 
@@ -405,6 +406,7 @@ export class NotificationPreferencesComponent implements OnInit, OnDestroy {
 
   private loadPreferences(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
 
     this.notifService
       .getNotificationConfig(orgId)

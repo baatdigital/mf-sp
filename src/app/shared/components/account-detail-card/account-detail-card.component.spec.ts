@@ -34,35 +34,36 @@ describe('AccountDetailCardComponent', () => {
   });
 
   it('should show empty state when account is null and not loading', () => {
-    component.account = null;
-    component.isLoading = false;
+    fixture.componentRef.setInput('account', null);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.card-empty')).toBeTruthy();
   });
 
   it('should show skeleton when isLoading is true', () => {
-    component.isLoading = true;
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.skeleton-title')).toBeTruthy();
   });
 
   it('should not show account data when loading', () => {
-    component.account = makeAccount();
-    component.isLoading = true;
+    fixture.componentRef.setInput('account', makeAccount());
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.account-name')).toBeNull();
   });
 
   it('should display account name when account is provided', () => {
-    component.account = makeAccount({ name: 'Mi Cuenta' });
-    component.isLoading = false;
+    fixture.componentRef.setInput('account', makeAccount({ name: 'Mi Cuenta' }));
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const nameEl = (fixture.nativeElement as HTMLElement).querySelector('.account-name');
     expect(nameEl?.textContent?.trim()).toBe('Mi Cuenta');
   });
 
   it('should use account_type as fallback name when name is not set', () => {
-    component.account = makeAccount({ name: undefined });
+    fixture.componentRef.setInput('account', makeAccount({ name: undefined }));
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const nameEl = (fixture.nativeElement as HTMLElement).querySelector('.account-name');
     expect(nameEl?.textContent?.trim()).toBe('OPERATIVA');
@@ -75,7 +76,8 @@ describe('AccountDetailCardComponent', () => {
   });
 
   it('should emit refreshRequested when refresh button is clicked', () => {
-    component.account = makeAccount();
+    fixture.componentRef.setInput('account', makeAccount());
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
 
     let emitted = false;
@@ -100,7 +102,8 @@ describe('AccountDetailCardComponent', () => {
   });
 
   it('should display CLABE row when account has clabe', () => {
-    component.account = makeAccount({ clabe: '012345678901234567' });
+    fixture.componentRef.setInput('account', makeAccount({ clabe: '012345678901234567' }));
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const clabeEl = (fixture.nativeElement as HTMLElement).querySelector('.clabe');
     expect(clabeEl).toBeTruthy();
@@ -108,7 +111,8 @@ describe('AccountDetailCardComponent', () => {
   });
 
   it('should not display CLABE row when account has no clabe', () => {
-    component.account = makeAccount({ clabe: undefined });
+    fixture.componentRef.setInput('account', makeAccount({ clabe: undefined }));
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const clabeEl = (fixture.nativeElement as HTMLElement).querySelector('.clabe');
     expect(clabeEl).toBeNull();

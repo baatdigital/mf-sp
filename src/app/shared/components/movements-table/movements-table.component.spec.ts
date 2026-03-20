@@ -34,38 +34,38 @@ describe('MovementsTableComponent', () => {
   });
 
   it('should show empty state when entries array is empty and not loading', () => {
-    component.entries = [];
-    component.isLoading = false;
+    fixture.componentRef.setInput('entries', []);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.empty-state')).toBeTruthy();
   });
 
   it('should show skeleton rows when isLoading is true', () => {
-    component.isLoading = true;
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('.skeleton-row');
     expect(rows.length).toBe(3);
   });
 
   it('should hide empty state when isLoading is true', () => {
-    component.entries = [];
-    component.isLoading = true;
+    fixture.componentRef.setInput('entries', []);
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.empty-state')).toBeNull();
   });
 
   it('should render one row per entry', () => {
-    component.entries = [makeLedgerEntry(), makeLedgerEntry({ entry_id: 'entry-002' })];
-    component.isLoading = false;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry(), makeLedgerEntry({ entry_id: 'entry-002' })]);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
     expect(rows.length).toBe(2);
   });
 
   it('should show account column when showAccountColumn is true', () => {
-    component.entries = [makeLedgerEntry()];
-    component.showAccountColumn = true;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('showAccountColumn', true);
     fixture.detectChanges();
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll('th');
     const headerTexts = Array.from(headers).map(h => h.textContent?.trim());
@@ -73,8 +73,8 @@ describe('MovementsTableComponent', () => {
   });
 
   it('should hide account column when showAccountColumn is false', () => {
-    component.entries = [makeLedgerEntry()];
-    component.showAccountColumn = false;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('showAccountColumn', false);
     fixture.detectChanges();
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll('th');
     const headerTexts = Array.from(headers).map(h => h.textContent?.trim());

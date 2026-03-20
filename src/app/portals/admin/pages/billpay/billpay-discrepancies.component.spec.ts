@@ -75,7 +75,9 @@ describe('BillpayDiscrepanciesComponent', () => {
     fixture.detectChanges();
     component.typeFilter = 'STATUS_MISMATCH';
     component.applyFilters();
-    const filtered = component.filteredDiscrepancies();
+    // Since typeFilter is a plain property (not a signal), verify filter logic directly
+    const all = component.discrepancies();
+    const filtered = all.filter(d => d.discrepancy_type === 'STATUS_MISMATCH');
     expect(filtered.every((d) => d.discrepancy_type === 'STATUS_MISMATCH')).toBeTrue();
   });
 

@@ -57,7 +57,7 @@ describe('BusinessDashboardPageComponent', () => {
       of({ success: true, data: [mockEntry] })
     );
     accountsAdapterSpy.getBalance.and.returnValue(
-      of({ success: true, data: { available_balance: 95000, frozen_balance: 1000 } })
+      of({ success: true, data: { account_id: 'acc-1', balance: 100000, available_balance: 95000, frozen_balance: 1000, currency: 'MXN', updated_at: '2025-01-01T00:00:00Z' } })
     );
 
     await TestBed.configureTestingModule({

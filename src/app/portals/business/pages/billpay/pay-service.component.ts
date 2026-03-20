@@ -661,6 +661,7 @@ export class PayServiceComponent implements OnInit {
   consultarBill(): void {
     if (!this.reference.trim()) { return; }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
     this.error.set(null);
     this.queryResult.set(null);
@@ -692,6 +693,7 @@ export class PayServiceComponent implements OnInit {
   /** Cargar cuentas de la organizacion para el dropdown */
   private loadAccounts(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
 
     this.accountsAdapter.getAccounts(orgId).subscribe({
@@ -711,6 +713,7 @@ export class PayServiceComponent implements OnInit {
   confirmarPago(): void {
     if (!this.selectedAccountId) { return; }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     const query = this.queryResult();
     if (!query) { return; }
 
@@ -742,6 +745,7 @@ export class PayServiceComponent implements OnInit {
   guardarServicio(): void {
     if (!this.serviceNickname.trim()) { return; }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     const query = this.queryResult();
     if (!query) { return; }
 

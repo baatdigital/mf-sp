@@ -99,7 +99,7 @@ import {
                   <span class="history-date">{{ item.created_at | date: 'dd/MM/yyyy' }}</span>
                 </div>
                 <div class="history-right">
-                  <span class="history-amount">${{ item.amount | number: '1.2-2' }}</span>
+                  <span class="history-amount">\${{ item.amount | number: '1.2-2' }}</span>
                   <span
                     class="status-badge"
                     [class.status-success]="item.status === 'COMPLETED'"

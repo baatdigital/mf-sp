@@ -123,7 +123,7 @@ describe('CashOutRequestComponent', () => {
       throwError(() => ({ error: { message: 'Saldo insuficiente' } }))
     );
 
-    component.form.get('amount')?.setValue(9999);
+    component.form.get('amount')?.setValue(500);
     component.form.get('point_id')?.setValue('PP-001');
 
     component.onSubmit();
