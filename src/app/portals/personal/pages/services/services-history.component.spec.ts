@@ -94,4 +94,40 @@ describe('ServicesHistoryComponent', () => {
     expect(component.statusLabel('FAILED')).toBe('Fallido');
     expect(component.statusLabel('PENDING')).toBe('Pendiente');
   });
+
+  it('should return raw status for unknown values', () => {
+    expect(component.statusLabel('UNKNOWN')).toBe('UNKNOWN');
+  });
+
+  it('should not load when no orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    billpayServiceSpy.getHistory.calls.reset();
+    component.load();
+    expect(billpayServiceSpy.getHistory).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('should handle null data in response', () => {
+    billpayServiceSpy.getHistory.and.returnValue(of({ success: true, data: null } as any));
+    component.load();
+    expect(component.items()).toEqual([]);
+  });
+
+  it('should show all items in "all" tab', () => {
+    component.setTab('all');
+    expect(component.filtered().length).toBe(component.items().length);
+  });
+
+  it('emojiFor should use service_emoji when available', () => {
+    const item = { ...mockItems[0], service_emoji: '🎉' };
+    expect(component.emojiFor(item as any)).toBe('🎉');
+  });
+
+  it('should toggle between different items', () => {
+    component.toggleDetail('txn-001');
+    expect(component.selectedId()).toBe('txn-001');
+    component.toggleDetail('txn-002');
+    expect(component.selectedId()).toBe('txn-002');
+  });
 });

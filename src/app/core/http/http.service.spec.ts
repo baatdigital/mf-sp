@@ -6,7 +6,7 @@
  */
 
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, HttpHeaders } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { HttpService } from './http.service';
 import { SharedStateService } from '../../shared-state/shared-state.service';
@@ -134,6 +134,109 @@ describe('HttpService', () => {
       service.delete(testUrl).subscribe();
 
       const req = httpMock.expectOne(testUrl);
+      expect(req.request.method).toBe('DELETE');
+      req.flush({});
+    });
+  });
+
+  describe('PATCH', () => {
+    it('debe enviar peticion PATCH con body', () => {
+      const body = { name: 'updated' };
+      service.patch(testUrl, body).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.method).toBe('PATCH');
+      expect(req.request.body).toEqual(body);
+      req.flush({});
+    });
+  });
+
+  describe('custom headers', () => {
+    it('debe aceptar headers como Record<string, string>', () => {
+      service.get(testUrl, { headers: { 'X-Custom': 'value' } }).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.get('X-Custom')).toBe('value');
+      req.flush({});
+    });
+
+    it('debe aceptar headers como Record con array values', () => {
+      service.get(testUrl, { headers: { 'X-Multi': ['a', 'b'] } }).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.get('X-Multi')).toBe('a, b');
+      req.flush({});
+    });
+
+    it('debe aceptar headers como HttpHeaders', () => {
+      const customHeaders = new HttpHeaders({ 'X-From-Headers': 'test-val' });
+      service.get(testUrl, { headers: customHeaders }).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.get('X-From-Headers')).toBe('test-val');
+      req.flush({});
+    });
+  });
+
+  describe('sin tenantId/orgId', () => {
+    it('no debe incluir X-Tenant-Id si tenantId es null', () => {
+      (sharedStateSpy.tenant as jasmine.Spy).and.returnValue({
+        id: null,
+        apiKey: 'test-key',
+      });
+
+      service.get(testUrl).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.has('X-Tenant-Id')).toBeFalse();
+      req.flush({});
+    });
+
+    it('no debe incluir X-SP-Organization-Id si orgId es null', () => {
+      (sharedStateSpy.currentOrganizationId as jasmine.Spy).and.returnValue(null);
+
+      service.get(testUrl).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.has('X-SP-Organization-Id')).toBeFalse();
+      req.flush({});
+    });
+
+    it('debe usar environment.apiKey si tenant apiKey es null', () => {
+      (sharedStateSpy.tenant as jasmine.Spy).and.returnValue({
+        id: 'test',
+        apiKey: null,
+      });
+
+      service.get(testUrl).subscribe();
+
+      const req = httpMock.expectOne(testUrl);
+      expect(req.request.headers.has('X-API-KEY')).toBeTrue();
+      req.flush({});
+    });
+  });
+
+  describe('con params', () => {
+    it('GET debe incluir params', () => {
+      service.get(testUrl, { params: { key: 'value' } }).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === testUrl && r.params.get('key') === 'value');
+      expect(req.request.method).toBe('GET');
+      req.flush({});
+    });
+
+    it('POST debe incluir params', () => {
+      service.post(testUrl, {}, { params: { key: 'value' } }).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === testUrl && r.params.get('key') === 'value');
+      expect(req.request.method).toBe('POST');
+      req.flush({});
+    });
+
+    it('DELETE debe incluir params', () => {
+      service.delete(testUrl, { params: { key: 'value' } }).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === testUrl && r.params.get('key') === 'value');
       expect(req.request.method).toBe('DELETE');
       req.flush({});
     });

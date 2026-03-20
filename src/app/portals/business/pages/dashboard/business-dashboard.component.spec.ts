@@ -160,4 +160,61 @@ describe('BusinessDashboardPageComponent', () => {
     await fixture.whenStable();
     expect(component.totalBalance()).toBe(95000);
   });
+
+  it('should not refresh if no primary account', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.primaryAccount.set(null);
+    accountsAdapterSpy.getBalance.calls.reset();
+    component.refreshPrimaryAccount();
+    expect(accountsAdapterSpy.getBalance).not.toHaveBeenCalled();
+  });
+
+  it('should handle balance refresh error gracefully', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    accountsAdapterSpy.getBalance.and.returnValue(throwError(() => new Error('err')));
+    component.refreshPrimaryAccount();
+    expect(component.accountLoading()).toBeFalse();
+  });
+
+  it('should handle empty accounts list', async () => {
+    accountsAdapterSpy.getAccounts.and.returnValue(of({ success: true, data: [] }));
+    const fix3 = TestBed.createComponent(BusinessDashboardPageComponent);
+    fix3.detectChanges();
+    await fix3.whenStable();
+    expect(fix3.componentInstance.primaryAccount()).toBeNull();
+    expect(fix3.componentInstance.movementsLoading()).toBeFalse();
+  });
+
+  it('should handle getLedgerEntries error', async () => {
+    accountsAdapterSpy.getLedgerEntries.and.returnValue(throwError(() => new Error('err')));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.movementsLoading()).toBeFalse();
+  });
+
+  it('should handle null data in accounts and ledger', async () => {
+    accountsAdapterSpy.getAccounts.and.returnValue(of({ success: true, data: null } as any));
+    const fix5 = TestBed.createComponent(BusinessDashboardPageComponent);
+    fix5.detectChanges();
+    await fix5.whenStable();
+    expect(fix5.componentInstance.primaryAccount()).toBeNull();
+  });
+
+  it('should update balance from refresh response', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    accountsAdapterSpy.getBalance.and.returnValue(of({
+      success: true,
+      data: { available_balance: 50000, frozen_balance: 1000, account_id: 'acc-1', balance: 51000, currency: 'MXN', updated_at: '2026-01-01' },
+    }));
+    component.refreshPrimaryAccount();
+    expect(component.pendingBalance()).toBe(1000);
+  });
+
+  it('should set orgName from tenant', async () => {
+    fixture.detectChanges();
+    expect(component.orgName()).toBeTruthy();
+  });
 });

@@ -57,6 +57,9 @@ describe('PersonalService', () => {
       'getAccount',
       'getLedgerEntries',
     ]);
+    accountsAdapterSpy.getAccount.and.returnValue(
+      of({ success: true, data: mockAccounts.data[0] })
+    );
     transfersAdapterSpy = jasmine.createSpyObj('TransfersAdapter', [
       'createTransfer',
     ]);
@@ -107,6 +110,18 @@ describe('PersonalService', () => {
         error: () => { errorCaught = true; },
       });
       expect(errorCaught).toBeTrue();
+    });
+  });
+
+  describe('getAccount', () => {
+    it('should delegate to AccountsAdapter.getAccount', () => {
+      accountsAdapterSpy.getAccount.and.returnValue(
+        of({ success: true, data: mockAccounts.data[0] })
+      );
+      service.getAccount('org-001', 'acc-001').subscribe((result) => {
+        expect(result.data.account_id).toBe('acc-001');
+      });
+      expect(accountsAdapterSpy.getAccount).toHaveBeenCalledWith('org-001', 'acc-001');
     });
   });
 
