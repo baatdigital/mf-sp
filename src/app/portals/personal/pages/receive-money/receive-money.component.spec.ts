@@ -147,4 +147,161 @@ describe('ReceiveMoneyComponent', () => {
 
     expect(fixture4.componentInstance.account()).toBeNull();
   });
+
+  it('debe no cargar cuentas si no hay orgId', async () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+
+    const fixNoOrg = TestBed.createComponent(ReceiveMoneyComponent);
+    fixNoOrg.detectChanges();
+    await fixNoOrg.whenStable();
+
+    expect(fixNoOrg.componentInstance.isLoading()).toBeFalse();
+
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('debe usar nombre por defecto si currentUser no tiene name', async () => {
+    const origUser = mockSharedState.currentUser;
+    (mockSharedState as any).currentUser = () => ({ id: 'u-001', email: 'test@test.com' });
+
+    const fixNoName = TestBed.createComponent(ReceiveMoneyComponent);
+    fixNoName.detectChanges();
+    await fixNoName.whenStable();
+
+    expect(fixNoName.componentInstance.holderName()).toBe('Tu nombre');
+
+    (mockSharedState as any).currentUser = origUser;
+  });
+
+  it('debe copiar CLABE al portapapeles con copyClabe', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+    component.copyClabe();
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('123456789012345678');
+  });
+
+  it('debe marcar copied como true despues de copiar', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+    component.copyClabe();
+
+    // Wait for promise to resolve
+    await new Promise((r) => setTimeout(r, 10));
+    expect(component.copied()).toBeTrue();
+  });
+
+  it('debe no copiar si no hay CLABE', async () => {
+    component.account.set({ ...mockAccount, clabe: undefined } as any);
+    fixture.detectChanges();
+
+    spyOn(navigator.clipboard, 'writeText');
+    component.copyClabe();
+
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  it('debe usar fallback copy si clipboard API falla', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject('error'));
+    spyOn(document, 'createElement').and.callThrough();
+    spyOn(document, 'execCommand').and.returnValue(true);
+
+    component.copyClabe();
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(component.copied()).toBeTrue();
+  });
+
+  it('debe compartir CLABE con Web Share API si disponible', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Mock navigator.share
+    const origShare = navigator.share;
+    (navigator as any).share = jasmine.createSpy('share').and.returnValue(Promise.resolve());
+
+    component.shareClabe();
+
+    expect(navigator.share).toHaveBeenCalled();
+
+    // Restore
+    (navigator as any).share = origShare;
+  });
+
+  it('debe no compartir si no hay CLABE', async () => {
+    component.account.set(null);
+    fixture.detectChanges();
+
+    const origShare = navigator.share;
+    (navigator as any).share = jasmine.createSpy('share');
+
+    component.shareClabe();
+
+    expect(navigator.share).not.toHaveBeenCalled();
+    (navigator as any).share = origShare;
+  });
+
+  it('debe usar clipboard fallback para share si Web Share no esta disponible', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const origShare = navigator.share;
+    (navigator as any).share = undefined;
+    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+
+    component.shareClabe();
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+
+    (navigator as any).share = origShare;
+  });
+
+  it('debe manejar error cuando share es cancelado por usuario', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const origShare = navigator.share;
+    (navigator as any).share = jasmine.createSpy('share').and.returnValue(Promise.reject('cancelled'));
+
+    component.shareClabe();
+
+    await new Promise((r) => setTimeout(r, 50));
+    // Should not throw - just silently handles the error
+
+    (navigator as any).share = origShare;
+  });
+
+  it('debe seleccionar cuenta con status ACTIVE entre varias', async () => {
+    const inactiveAccount = { ...mockAccount, account_id: 'acc-inactive', status: 'FROZEN' as const };
+    mockAccountsAdapter.getAccounts.and.returnValue(
+      of({ success: true, data: [inactiveAccount, mockAccount] })
+    );
+
+    const fixMulti = TestBed.createComponent(ReceiveMoneyComponent);
+    fixMulti.detectChanges();
+    await fixMulti.whenStable();
+
+    expect(fixMulti.componentInstance.account()!.account_id).toBe('acc-001');
+  });
+
+  it('debe manejar response.data como null en loadAccount', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(
+      of({ success: true, data: null } as any)
+    );
+
+    const fixNull = TestBed.createComponent(ReceiveMoneyComponent);
+    fixNull.detectChanges();
+    await fixNull.whenStable();
+
+    expect(fixNull.componentInstance.account()).toBeNull();
+    expect(fixNull.componentInstance.isLoading()).toBeFalse();
+  });
 });

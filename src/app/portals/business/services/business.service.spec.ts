@@ -87,4 +87,31 @@ describe('BusinessService', () => {
     expect(req.request.params.get('page')).toBe('1');
     req.flush({ success: true, data: [] });
   });
+
+  it('getMovements should include dateFrom param', () => {
+    service.getMovements('org-1', 'acc-1', { dateFrom: '2026-01-01' }).subscribe();
+    const req = httpMock.expectOne((r) =>
+      r.url.includes('/organizations/org-1/accounts/acc-1/ledger') &&
+      r.params.get('date_from') === '2026-01-01'
+    );
+    req.flush({ success: true, data: [] });
+  });
+
+  it('getMovements should include dateTo param', () => {
+    service.getMovements('org-1', 'acc-1', { dateTo: '2026-01-31' }).subscribe();
+    const req = httpMock.expectOne((r) =>
+      r.url.includes('/organizations/org-1/accounts/acc-1/ledger') &&
+      r.params.get('date_to') === '2026-01-31'
+    );
+    req.flush({ success: true, data: [] });
+  });
+
+  it('getMovements should include pageSize param', () => {
+    service.getMovements('org-1', 'acc-1', { pageSize: 50 }).subscribe();
+    const req = httpMock.expectOne((r) =>
+      r.url.includes('/organizations/org-1/accounts/acc-1/ledger') &&
+      r.params.get('page_size') === '50'
+    );
+    req.flush({ success: true, data: [] });
+  });
 });

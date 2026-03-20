@@ -151,6 +151,53 @@ describe('AdminService', () => {
     req.flush(mockResponse);
   });
 
+  it('getOrganizations should work without any filters', () => {
+    service.getOrganizations().subscribe((res) => {
+      expect(res.success).toBeTrue();
+    });
+
+    const req = httpMock.expectOne((r) => r.url.includes('/admin/organizations'));
+    expect(req.request.params.keys().length).toBe(0);
+    req.flush({ success: true, data: [], total: 0, page: 1, page_size: 20 });
+  });
+
+  it('getOrganizations should include search param', () => {
+    service.getOrganizations({ search: 'test' }).subscribe();
+    const req = httpMock.expectOne((r) => r.params.get('search') === 'test');
+    req.flush({ success: true, data: [], total: 0, page: 1, page_size: 20 });
+  });
+
+  it('getOrganizations should include status param', () => {
+    service.getOrganizations({ status: 'ACTIVE' }).subscribe();
+    const req = httpMock.expectOne((r) => r.params.get('status') === 'ACTIVE');
+    req.flush({ success: true, data: [], total: 0, page: 1, page_size: 20 });
+  });
+
+  it('getOrganizations should include page_size param', () => {
+    service.getOrganizations({ page_size: 50 }).subscribe();
+    const req = httpMock.expectOne((r) => r.params.get('page_size') === '50');
+    req.flush({ success: true, data: [], total: 0, page: 1, page_size: 50 });
+  });
+
+  it('getAllTransfers should work without filters', () => {
+    service.getAllTransfers().subscribe();
+    const req = httpMock.expectOne((r) => r.url.includes('/admin/transfers'));
+    expect(req.request.params.keys().length).toBe(0);
+    req.flush({ success: true, data: [], total: 0, summary: { pending_amount: 0, processing_amount: 0, completed_amount: 0, failed_amount: 0 } });
+  });
+
+  it('getAllTransfers should include status param', () => {
+    service.getAllTransfers({ status: 'PENDING' }).subscribe();
+    const req = httpMock.expectOne((r) => r.params.get('status') === 'PENDING');
+    req.flush({ success: true, data: [], total: 0, summary: { pending_amount: 0, processing_amount: 0, completed_amount: 0, failed_amount: 0 } });
+  });
+
+  it('getAllTransfers should include page and page_size params', () => {
+    service.getAllTransfers({ page: 2, page_size: 10 }).subscribe();
+    const req = httpMock.expectOne((r) => r.params.get('page') === '2' && r.params.get('page_size') === '10');
+    req.flush({ success: true, data: [], total: 0, summary: { pending_amount: 0, processing_amount: 0, completed_amount: 0, failed_amount: 0 } });
+  });
+
   it('unfreezeOrganization should POST to /admin/organizations/:orgId/unfreeze', () => {
     const orgId = 'org-frozen';
 

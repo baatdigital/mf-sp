@@ -50,14 +50,10 @@ describe('authGuard', () => {
   it('debe bloquear acceso si el usuario no esta autenticado', () => {
     (sharedStateSpy.isAuthenticated as jasmine.Spy).and.returnValue(false);
 
-    // We cannot prevent window.location.href from navigating in all browsers,
-    // so we test just the return value. The guard returns false for unauthenticated users.
-    // Spy on the guard indirectly - check the return value only
-    // Note: this test may trigger a brief navigation attempt but Karma handles it
+    // Simulate the guard logic - authGuard sets window.location.href which we cannot intercept cleanly
     const result = TestBed.runInInjectionContext(() => {
       const ss = TestBed.inject(SharedStateService);
       if (!ss.isAuthenticated()) {
-        // Simulate what authGuard does without the navigation
         return false;
       }
       return true;
@@ -142,7 +138,7 @@ describe('tierGuard', () => {
     (sharedStateSpy.isAuthenticated as jasmine.Spy).and.returnValue(false);
     tierServiceSpy.detectTier.and.returnValue('admin');
 
-    // Test the logic without triggering window.location.href navigation
+    // Simulate guard logic to avoid window.location.href navigation
     const result = TestBed.runInInjectionContext(() => {
       const ss = TestBed.inject(SharedStateService);
       if (!ss.isAuthenticated()) {
