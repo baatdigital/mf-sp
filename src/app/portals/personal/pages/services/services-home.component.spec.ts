@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { ServicesHomeComponent } from './services-home.component';
 import { ServicesBillpayService } from '../../services/services-billpay.service';
@@ -21,13 +22,14 @@ describe('ServicesHomeComponent', () => {
       'getSavedServices', 'getHistory', 'saveService',
     ]);
     billpayServiceSpy.getSavedServices.and.returnValue([]);
-    billpayServiceSpy.getHistory.and.returnValue(of({ success: true, data: [] }));
+    billpayServiceSpy.getHistory.and.returnValue(of({ success: true, data: [], total: 0 }));
 
     TestBed.configureTestingModule({
       imports: [ServicesHomeComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideRouter([]),
         { provide: ServicesBillpayService, useValue: billpayServiceSpy },
         { provide: SharedStateService, useValue: mockSharedState },
       ],
@@ -68,7 +70,7 @@ describe('ServicesHomeComponent', () => {
       category: 'electricidad',
       created_at: '2026-02-01T10:00:00Z',
     }));
-    billpayServiceSpy.getHistory.and.returnValue(of({ success: true, data: manyItems }));
+    billpayServiceSpy.getHistory.and.returnValue(of({ success: true, data: manyItems as any, total: manyItems.length }));
     component.ngOnInit();
     expect(component.recentPayments().length).toBeLessThanOrEqual(3);
   });

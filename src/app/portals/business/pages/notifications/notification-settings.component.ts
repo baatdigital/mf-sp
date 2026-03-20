@@ -518,6 +518,7 @@ export class NotificationSettingsComponent implements OnInit, OnDestroy {
     if (this.webhookUrlError()) return;
 
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isSaving.set(true);
     this.webhookSuccess.set(false);
     this.webhookError.set(null);
@@ -543,6 +544,7 @@ export class NotificationSettingsComponent implements OnInit, OnDestroy {
 
   saveChannels(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isChannelSaving.set(true);
     this.channelSuccess.set(false);
     this.channelError.set(null);
@@ -568,6 +570,7 @@ export class NotificationSettingsComponent implements OnInit, OnDestroy {
 
   private loadConfig(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
 
     this.notifService
       .getWebhookConfig(orgId)

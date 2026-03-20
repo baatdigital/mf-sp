@@ -80,7 +80,8 @@ const STATIC_CATALOG: BillpayService[] = [
         <input
           type="text"
           placeholder="Buscar servicio..."
-          [(ngModel)]="searchQuery"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
           class="search-input"
           aria-label="Buscar servicio"
         />
@@ -129,7 +130,7 @@ const STATIC_CATALOG: BillpayService[] = [
       } @else if (filteredServices().length === 0) {
         <div class="empty-state">
           <p class="empty-icon">🔍</p>
-          <p>No se encontraron servicios para "{{ searchQuery }}"</p>
+          <p>No se encontraron servicios para "{{ searchQuery() }}"</p>
           <button type="button" class="btn-outline" (click)="clearSearch()">
             Limpiar busqueda
           </button>
@@ -418,15 +419,15 @@ export class ServiceCatalogViewComponent implements OnInit {
   readonly allCategories = Object.keys(CATEGORY_CONFIG) as BillpayCategory[];
   readonly skeletonItems = Array(12).fill(null);
 
-  // Termino de busqueda (two-way binding con ngModel)
-  searchQuery = '';
+  // Termino de busqueda (signal para reactividad con computed)
+  readonly searchQuery = signal('');
 
   /**
    * Servicios filtrados por categoria activa y termino de busqueda.
    */
   readonly filteredServices = computed(() => {
     const cat = this.activeCategory();
-    const query = this.searchQuery.toLowerCase().trim();
+    const query = this.searchQuery().toLowerCase().trim();
     return this.services().filter((svc) => {
       const matchesCat = cat === null || svc.category === cat;
       const matchesQuery =
@@ -487,7 +488,7 @@ export class ServiceCatalogViewComponent implements OnInit {
   }
 
   clearSearch(): void {
-    this.searchQuery = '';
+    this.searchQuery.set('');
   }
 
   selectService(svc: BillpayService): void {

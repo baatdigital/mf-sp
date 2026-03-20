@@ -105,12 +105,12 @@ function serviceEmoji(category: string): string {
               <div class="card-main">
                 <span class="service-icon">{{ emojiFor(item) }}</span>
                 <div class="card-info">
-                  <span class="service-name">{{ item.biller_name }}</span>
+                  <span class="service-name">{{ item.service_name }}</span>
                   <span class="reference">Ref: {{ item.reference }}</span>
                   <span class="date">{{ item.created_at | date:'dd/MM/yyyy HH:mm' }}</span>
                 </div>
                 <div class="card-right">
-                  <span class="amount">${{ item.amount | number:'1.2-2' }}</span>
+                  <span class="amount">\${{ item.amount | number:'1.2-2' }}</span>
                   <span
                     class="status-badge"
                     [class.completed]="item.status === 'COMPLETED'"
@@ -140,7 +140,7 @@ function serviceEmoji(category: string): string {
                   </div>
                   <div class="field-row">
                     <span class="field-label">Servicio:</span>
-                    <span class="field-value">{{ item.biller_name }}</span>
+                    <span class="field-value">{{ item.service_name }}</span>
                   </div>
                   <div class="field-row">
                     <span class="field-label">Referencia:</span>
@@ -148,7 +148,7 @@ function serviceEmoji(category: string): string {
                   </div>
                   <div class="field-row">
                     <span class="field-label">Monto:</span>
-                    <span class="field-value">${{ item.amount | number:'1.2-2' }}</span>
+                    <span class="field-value">\${{ item.amount | number:'1.2-2' }}</span>
                   </div>
                   <div class="field-row">
                     <span class="field-label">Estado:</span>
@@ -298,7 +298,7 @@ export class ServicesHistoryComponent implements OnInit {
     if (!orgId) return;
     this.isLoading.set(true);
     this.error.set(null);
-    this.billpayService.getHistory(orgId).subscribe({
+    this.billpayService.getHistory().subscribe({
       next: (res) => {
         this.items.set(res?.data ?? []);
         this.isLoading.set(false);
@@ -319,7 +319,7 @@ export class ServicesHistoryComponent implements OnInit {
   }
 
   emojiFor(item: BillPayHistoryItem): string {
-    return serviceEmoji(item.category ?? '');
+    return item.service_emoji ?? serviceEmoji(item.service_name ?? '');
   }
 
   statusLabel(status: string): string {

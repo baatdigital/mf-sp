@@ -57,7 +57,19 @@ describe('CashDashboardComponent', () => {
 
   beforeEach(async () => {
     mockAccountsAdapter.getAccounts.calls.reset();
+    mockAccountsAdapter.getAccounts.and.returnValue(
+      of({ success: true, data: [mockAccount] })
+    );
     mockCashService.getHistory.calls.reset();
+    mockCashService.getHistory.and.returnValue(
+      of({
+        success: true,
+        data: [
+          { transaction_id: 'TXN-1', type: 'DEPOSIT', amount: 500, status: 'COMPLETED', point_id: 'PP-001', created_at: '2026-01-01T10:00:00Z' },
+        ],
+        total: 1,
+      })
+    );
 
     await TestBed.configureTestingModule({
       imports: [CashDashboardComponent],
