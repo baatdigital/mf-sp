@@ -110,13 +110,19 @@ import { SpeiTransfer } from '@domain/models/transfer.model';
     .transfers-table-wrapper {
       background: white;
       border-radius: 12px;
-      overflow: auto;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     }
 
     .transfers-table {
       width: 100%;
       border-collapse: collapse;
+      min-width: 36rem;
+    }
+
+    @media (min-width: 430px) {
+      .transfers-table { min-width: 0; }
     }
 
     .transfers-table th {

@@ -60,6 +60,7 @@ import { FinancialAccount } from '@domain/models/financial-account.model';
               alt="Codigo QR de tu CLABE - disponible proximamente"
               width="120"
               height="120"
+              loading="lazy"
             />
             <p class="qr-caption">QR proximamente</p>
           </div>
