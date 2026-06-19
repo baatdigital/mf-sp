@@ -24,7 +24,7 @@ describe('HttpService', () => {
       currentOrganizationId: jasmine.createSpy('currentOrganizationId').and.returnValue('org-123'),
       tenant: jasmine.createSpy('tenant').and.returnValue({
         id: 'superpago',
-        apiKey: 'MASTER-SuperSecretKey123456789',
+        apiKey: 'test-api-key',
         name: 'SuperPago',
         domain: 'localhost',
         logo: null,
@@ -68,7 +68,7 @@ describe('HttpService', () => {
       service.get(testUrl).subscribe();
 
       const req = httpMock.expectOne(testUrl);
-      expect(req.request.headers.get('X-API-KEY')).toBe('MASTER-SuperSecretKey123456789');
+      expect(req.request.headers.get('X-API-KEY')).toBe('test-api-key');
       req.flush({});
     });
 
@@ -202,7 +202,7 @@ describe('HttpService', () => {
       req.flush({});
     });
 
-    it('debe usar environment.apiKey si tenant apiKey es null', () => {
+    it('no debe incluir X-API-KEY si tenant apiKey es null y environment.apiKey esta vacio', () => {
       (sharedStateSpy.tenant as jasmine.Spy).and.returnValue({
         id: 'test',
         apiKey: null,
@@ -211,7 +211,7 @@ describe('HttpService', () => {
       service.get(testUrl).subscribe();
 
       const req = httpMock.expectOne(testUrl);
-      expect(req.request.headers.has('X-API-KEY')).toBeTrue();
+      expect(req.request.headers.has('X-API-KEY')).toBeFalse();
       req.flush({});
     });
   });

@@ -10,7 +10,7 @@ import { of, throwError } from 'rxjs';
 const mockSharedState = {
   accessToken: () => 'test-token',
   currentOrganizationId: () => 'org-001',
-  tenant: () => ({ id: 'superpago', apiKey: 'MASTER-SuperSecretKey123456789' }),
+  tenant: () => ({ id: 'superpago', apiKey: 'test-api-key' }),
   currentUser: () => ({ name: 'Test User', email: 'test@test.com', id: 'u-001' }),
 };
 
