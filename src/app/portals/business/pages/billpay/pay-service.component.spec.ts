@@ -202,4 +202,178 @@ describe('PayServiceComponent', () => {
     expect(component.savedMessage()).toContain('guardado');
     expect(component.isSaving()).toBeFalse();
   });
+
+  it('consultarBill no debe ejecutarse si reference esta vacia', () => {
+    component.reference = '   ';
+    component.consultarBill();
+    expect(mockBillpay.queryBill).not.toHaveBeenCalled();
+  });
+
+  it('consultarBill no debe ejecutarse si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.reference = '12345';
+    component.consultarBill();
+    expect(mockBillpay.queryBill).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('goToStep1 debe regresar al paso 1 y limpiar error', () => {
+    component.currentStep.set(2);
+    component.error.set('Algun error');
+    component.goToStep1();
+    expect(component.currentStep()).toBe(1);
+    expect(component.error()).toBeNull();
+  });
+
+  it('confirmarPago no debe ejecutarse si no hay selectedAccountId', () => {
+    component.selectedAccountId = '';
+    component.queryResult.set(mockQueryResult);
+    component.confirmarPago();
+    expect(mockBillpay.payBill).not.toHaveBeenCalled();
+  });
+
+  it('confirmarPago no debe ejecutarse si no hay queryResult', () => {
+    component.selectedAccountId = 'ACC-001';
+    component.queryResult.set(null);
+    component.confirmarPago();
+    expect(mockBillpay.payBill).not.toHaveBeenCalled();
+  });
+
+  it('confirmarPago no debe ejecutarse si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.selectedAccountId = 'ACC-001';
+    component.queryResult.set(mockQueryResult);
+    component.confirmarPago();
+    expect(mockBillpay.payBill).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('confirmarPago muestra error cuando el pago falla con error HTTP', async () => {
+    mockBillpay.payBill.and.returnValue(throwError(() => new Error('Payment error')));
+    component.queryResult.set(mockQueryResult);
+    component.accounts.set(mockAccounts);
+    component.selectedAccountId = 'ACC-001';
+    component.currentStep.set(2);
+
+    component.confirmarPago();
+    await fixture.whenStable();
+
+    expect(component.error()).toBeTruthy();
+    expect(component.isLoading()).toBeFalse();
+  });
+
+  it('loadAccounts muestra error cuando falla la carga de cuentas', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(throwError(() => new Error('Error')));
+    component.queryResult.set(mockQueryResult);
+    component.goToStep2();
+    await fixture.whenStable();
+
+    expect(component.error()).toBeTruthy();
+    expect(component.isLoading()).toBeFalse();
+  });
+
+  it('guardarServicio no debe ejecutarse si nickname esta vacio', () => {
+    component.serviceNickname = '';
+    component.queryResult.set(mockQueryResult);
+    component.guardarServicio();
+    expect(mockBillpay.saveService).not.toHaveBeenCalled();
+  });
+
+  it('guardarServicio no debe ejecutarse si no hay queryResult', () => {
+    component.serviceNickname = 'Test';
+    component.queryResult.set(null);
+    component.guardarServicio();
+    expect(mockBillpay.saveService).not.toHaveBeenCalled();
+  });
+
+  it('guardarServicio no debe ejecutarse si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.serviceNickname = 'Test';
+    component.queryResult.set(mockQueryResult);
+    component.guardarServicio();
+    expect(mockBillpay.saveService).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('guardarServicio muestra error cuando falla', async () => {
+    mockBillpay.saveService.and.returnValue(throwError(() => new Error('Save error')));
+    component.queryResult.set(mockQueryResult);
+    component.serviceNickname = 'Test';
+    component.serviceId = 'CFE';
+    component.serviceName = 'CFE';
+    component.guardarServicio();
+    await fixture.whenStable();
+
+    expect(component.savedMessage()).toContain('No se pudo guardar');
+    expect(component.isSaving()).toBeFalse();
+  });
+
+  it('selectedAccount debe retornar la cuenta seleccionada', () => {
+    component.accounts.set(mockAccounts);
+    component.selectedAccountId = 'ACC-001';
+    expect(component.selectedAccount()?.account_id).toBe('ACC-001');
+  });
+
+  it('selectedAccount debe retornar undefined si no coincide', () => {
+    component.accounts.set(mockAccounts);
+    component.selectedAccountId = 'NONEXISTENT';
+    expect(component.selectedAccount()).toBeUndefined();
+  });
+
+  it('ngOnInit debe cargar reference desde queryParams', () => {
+    const routeWithRef = { queryParams: of({ service_id: 'CFE', service_name: 'CFE', reference: 'REF123' }) };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PayServiceComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: BillpayServiceApi, useValue: mockBillpay },
+        { provide: AccountsAdapter, useValue: mockAccountsAdapter },
+        { provide: SharedStateService, useValue: mockSharedState },
+        { provide: ActivatedRoute, useValue: routeWithRef },
+      ],
+    });
+
+    const fix2 = TestBed.createComponent(PayServiceComponent);
+    fix2.detectChanges();
+    expect(fix2.componentInstance.reference).toBe('REF123');
+  });
+
+  it('ngOnInit debe usar serviceId como fallback para serviceName', () => {
+    const routeNoName = { queryParams: of({ service_id: 'TELMEX' }) };
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [PayServiceComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: BillpayServiceApi, useValue: mockBillpay },
+        { provide: AccountsAdapter, useValue: mockAccountsAdapter },
+        { provide: SharedStateService, useValue: mockSharedState },
+        { provide: ActivatedRoute, useValue: routeNoName },
+      ],
+    });
+
+    const fix3 = TestBed.createComponent(PayServiceComponent);
+    fix3.detectChanges();
+    expect(fix3.componentInstance.serviceName).toBe('TELMEX');
+  });
+
+  it('loadAccounts debe filtrar solo cuentas activas', async () => {
+    const mixedAccounts = [
+      { ...mockAccounts[0] },
+      { ...mockAccounts[0], account_id: 'ACC-FROZEN', status: 'FROZEN' as const },
+    ];
+    mockAccountsAdapter.getAccounts.and.returnValue(of({ success: true, data: mixedAccounts }));
+    component.goToStep2();
+    await fixture.whenStable();
+    expect(component.accounts().length).toBe(1);
+    expect(component.accounts()[0].status).toBe('ACTIVE');
+  });
 });

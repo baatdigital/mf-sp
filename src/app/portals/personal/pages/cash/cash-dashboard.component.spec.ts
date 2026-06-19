@@ -141,4 +141,58 @@ describe('CashDashboardComponent', () => {
     expect(fixture3.componentInstance.recentTransactions()).toEqual([]);
     expect(fixture3.componentInstance.isLoading()).toBeFalse();
   });
+
+  it('no debe cargar datos si no hay orgId', async () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    mockAccountsAdapter.getAccounts.calls.reset();
+
+    const fix4 = TestBed.createComponent(CashDashboardComponent);
+    fix4.detectChanges();
+    await fix4.whenStable();
+
+    expect(mockAccountsAdapter.getAccounts).not.toHaveBeenCalled();
+    expect(fix4.componentInstance.isLoading()).toBeFalse();
+
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('debe manejar cuenta sin cuenta activa', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(of({
+      success: true,
+      data: [{ account_id: 'ACC-FROZEN', status: 'FROZEN', available_balance: 0 }],
+    }));
+
+    const fix5 = TestBed.createComponent(CashDashboardComponent);
+    fix5.detectChanges();
+    await fix5.whenStable();
+
+    expect(fix5.componentInstance.account()).toBeNull();
+    expect(fix5.componentInstance.isLoading()).toBeFalse();
+  });
+
+  it('debe limitar historial a 5 transacciones', async () => {
+    const manyTxns = Array.from({ length: 10 }, (_, i) => ({
+      transaction_id: `TXN-${i}`,
+      type: 'CASH_IN' as const,
+      amount: 100,
+      status: 'COMPLETED',
+      created_at: '2026-01-01',
+    }));
+    mockCashService.getHistory.and.returnValue(of({ success: true, data: manyTxns, total: 10 }));
+
+    const fix6 = TestBed.createComponent(CashDashboardComponent);
+    fix6.detectChanges();
+    await fix6.whenStable();
+
+    expect(fix6.componentInstance.recentTransactions().length).toBeLessThanOrEqual(5);
+  });
+
+  it('debe manejar null data en respuestas', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(of({ success: true, data: null } as any));
+    const fix7 = TestBed.createComponent(CashDashboardComponent);
+    fix7.detectChanges();
+    await fix7.whenStable();
+    expect(fix7.componentInstance.account()).toBeNull();
+  });
 });

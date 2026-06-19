@@ -197,4 +197,102 @@ describe('BusinessReportsComponent', () => {
   it('getBarHeight should return proportional height', () => {
     expect(component.getBarHeight(50, 100)).toBe(50);
   });
+
+  it('getBarHeight should return minimum 2 for small values', () => {
+    expect(component.getBarHeight(1, 1000)).toBeGreaterThanOrEqual(2);
+  });
+
+  it('getCategoryPercent should return 0 when no categories', () => {
+    component.allEntries.set([]);
+    expect(component.getCategoryPercent(100)).toBe(0);
+  });
+
+  it('getCategoryPercent should return proportional percent', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const summary = component.categorySummary();
+    if (summary.length > 0) {
+      const pct = component.getCategoryPercent(summary[0].total);
+      expect(pct).toBeGreaterThanOrEqual(0);
+      expect(pct).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('selectPeriod should change period and reload', () => {
+    fixture.detectChanges();
+    businessServiceSpy.getReports.calls.reset();
+    component.selectPeriod('last_month');
+    expect(component.selectedPeriod()).toBe('last_month');
+    expect(businessServiceSpy.getReports).toHaveBeenCalled();
+  });
+
+  it('should fallback to ledger when reports API fails', async () => {
+    businessServiceSpy.getReports.and.returnValue(throwError(() => new Error('err')));
+    accountsAdapterSpy.getAccounts.and.returnValue(of({ success: true, data: [mockAccount] }));
+    accountsAdapterSpy.getLedgerEntries.and.returnValue(of({ success: true, data: mockEntries }));
+
+    component.selectPeriod('this_month');
+    await fixture.whenStable();
+
+    expect(accountsAdapterSpy.getAccounts).toHaveBeenCalled();
+  });
+
+  it('should handle fallback with no active accounts', async () => {
+    businessServiceSpy.getReports.and.returnValue(throwError(() => new Error('err')));
+    accountsAdapterSpy.getAccounts.and.returnValue(of({ success: true, data: [{ ...mockAccount, status: 'FROZEN' }] }));
+
+    component.selectPeriod('this_month');
+    await fixture.whenStable();
+
+    expect(component.allEntries()).toEqual([]);
+  });
+
+  it('should handle fallback ledger error', async () => {
+    businessServiceSpy.getReports.and.returnValue(throwError(() => new Error('err')));
+    accountsAdapterSpy.getAccounts.and.returnValue(of({ success: true, data: [mockAccount] }));
+    accountsAdapterSpy.getLedgerEntries.and.returnValue(throwError(() => new Error('ledger err')));
+
+    component.selectPeriod('this_month');
+    await fixture.whenStable();
+
+    expect(component.error()).toBeTruthy();
+  });
+
+  it('should handle fallback accounts error', async () => {
+    businessServiceSpy.getReports.and.returnValue(throwError(() => new Error('err')));
+    accountsAdapterSpy.getAccounts.and.returnValue(throwError(() => new Error('acc err')));
+
+    component.selectPeriod('this_month');
+    await fixture.whenStable();
+
+    expect(component.error()).toBeTruthy();
+  });
+
+  it('netBalance should be credits minus debits', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.netBalance()).toBe(component.totalCredits() - component.totalDebits());
+  });
+
+  it('totalMovements should count all entries', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.totalMovements()).toBe(component.allEntries().length);
+  });
+
+  it('should handle report response with entries nested', async () => {
+    businessServiceSpy.getReports.and.returnValue(of({
+      success: true,
+      data: { entries: mockEntries },
+    }));
+    component.selectPeriod('this_month');
+    await fixture.whenStable();
+    expect(component.allEntries().length).toBe(mockEntries.length);
+  });
+
+  it('selectPeriod with last_3_months should work', () => {
+    businessServiceSpy.getReports.and.returnValue(of({ success: true, data: [] }));
+    component.selectPeriod('last_3_months');
+    expect(component.selectedPeriod()).toBe('last_3_months');
+  });
 });

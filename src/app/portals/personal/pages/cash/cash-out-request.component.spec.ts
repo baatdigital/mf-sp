@@ -55,6 +55,14 @@ describe('CashOutRequestComponent', () => {
 
   beforeEach(async () => {
     mockAccountsAdapter.getAccounts.calls.reset();
+    mockAccountsAdapter.getAccounts.and.returnValue(
+      of({
+        success: true,
+        data: [
+          { account_id: 'ACC-001', status: 'ACTIVE', available_balance: 1000, balance: 1200, currency: 'MXN', account_type: 'PERSONAL', org_id: 'org-123', created_at: '' },
+        ],
+      })
+    );
     mockCashService.requestCashOut.calls.reset();
     mockCashService.requestCashOut.and.returnValue(of(mockRequestResponse));
 
@@ -148,9 +156,90 @@ describe('CashOutRequestComponent', () => {
 
   it('debe limpiar el intervalo al destruirse el componente', () => {
     spyOn(window, 'clearInterval');
-    // Forzar intervalo
     (component as any).countdownInterval = setInterval(() => {}, 1000);
     component.ngOnDestroy();
     expect(window.clearInterval).toHaveBeenCalled();
+  });
+
+  it('no debe llamar requestCashOut si el formulario es invalido', () => {
+    component.onSubmit();
+    expect(mockCashService.requestCashOut).not.toHaveBeenCalled();
+  });
+
+  it('debe mostrar error si no hay orgId al submit', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.form.get('amount')?.setValue(200);
+    component.form.get('point_id')?.setValue('PP-001');
+    component.onSubmit();
+    expect(component.error()).toBe('No se encontro la organizacion activa.');
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('debe usar error generico cuando falla sin message', async () => {
+    mockCashService.requestCashOut.and.returnValue(throwError(() => ({})));
+    component.form.get('amount')?.setValue(200);
+    component.form.get('point_id')?.setValue('PP-001');
+    component.onSubmit();
+    await fixture.whenStable();
+    expect(component.error()).toContain('Error al generar');
+  });
+
+  it('isFieldInvalid debe retornar false para campo valido', () => {
+    component.form.get('amount')?.setValue(100);
+    expect(component.isFieldInvalid('amount')).toBeFalse();
+  });
+
+  it('isFieldInvalid debe retornar true para campo invalido y tocado', () => {
+    component.form.get('amount')?.markAsTouched();
+    expect(component.isFieldInvalid('amount')).toBeTrue();
+  });
+
+  it('debe usar fallback de 30 minutos si expires_at ya paso', async () => {
+    const pastExpiry = new Date(Date.now() - 60000).toISOString();
+    mockCashService.requestCashOut.and.returnValue(of({
+      success: true,
+      data: { ...mockRequestResponse.data, expires_at: pastExpiry },
+    }));
+
+    component.form.get('amount')?.setValue(200);
+    component.form.get('point_id')?.setValue('PP-001');
+    component.onSubmit();
+    await fixture.whenStable();
+
+    expect(component.timeRemaining()).toBe(30 * 60);
+    expect(component.formattedTime()).toBe('30:00');
+  });
+
+  it('debe manejar error al cargar balance sin crashear', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(throwError(() => new Error('err')));
+    const fix2 = TestBed.createComponent(CashOutRequestComponent);
+    fix2.detectChanges();
+    await fix2.whenStable();
+    expect(fix2.componentInstance.availableBalance()).toBeNull();
+    fix2.componentInstance.ngOnDestroy();
+  });
+
+  it('no debe cargar balance si no hay orgId', async () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    mockAccountsAdapter.getAccounts.calls.reset();
+    const fix3 = TestBed.createComponent(CashOutRequestComponent);
+    fix3.detectChanges();
+    expect(mockAccountsAdapter.getAccounts).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+    fix3.componentInstance.ngOnDestroy();
+  });
+
+  it('debe manejar accounts sin cuenta ACTIVE', async () => {
+    mockAccountsAdapter.getAccounts.and.returnValue(of({
+      success: true,
+      data: [{ account_id: 'ACC-002', status: 'FROZEN', available_balance: 0 }],
+    }));
+    const fix4 = TestBed.createComponent(CashOutRequestComponent);
+    fix4.detectChanges();
+    await fix4.whenStable();
+    expect(fix4.componentInstance.availableBalance()).toBeNull();
+    fix4.componentInstance.ngOnDestroy();
   });
 });

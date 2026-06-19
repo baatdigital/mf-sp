@@ -17,6 +17,6 @@ export const environment = {
     spOrganizationId: null as string | null,
   },
 
-  // API Key para autenticacion con backend
-  apiKey: 'MASTER-SuperSecretKey123456789',
+  // API Key para autenticacion con backend (se inyecta en runtime via covacha:tenant)
+  apiKey: '',
 };

@@ -128,5 +128,73 @@ describe('BillpayDiscrepanciesComponent', () => {
     component.resolveJustification = 'Justificacion valida';
     component.confirmResolve(mockDiscrepancy);
     expect(component.error()).toBeTruthy();
+    expect(component.actionLoading()).toBeFalse();
+  });
+
+  it('should filter discrepancies by dateFrom', () => {
+    fixture.detectChanges();
+    component.discrepancies.set([
+      { ...mockDiscrepancy, detected_at: '2025-01-15T10:00:00Z' },
+      { ...mockDiscrepancy, discrepancy_id: 'd2', detected_at: '2025-03-01T10:00:00Z' },
+    ]);
+    component.dateFrom = '2025-02-01';
+    const filtered = component.filteredDiscrepancies();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].discrepancy_id).toBe('d2');
+  });
+
+  it('should filter discrepancies by dateTo', () => {
+    fixture.detectChanges();
+    component.discrepancies.set([
+      { ...mockDiscrepancy, detected_at: '2025-01-15T10:00:00Z' },
+      { ...mockDiscrepancy, discrepancy_id: 'd2', detected_at: '2025-03-01T10:00:00Z' },
+    ]);
+    component.dateTo = '2025-02-01';
+    const filtered = component.filteredDiscrepancies();
+    expect(filtered.length).toBe(1);
+  });
+
+  it('should filter discrepancies by type AMOUNT_MISMATCH', () => {
+    fixture.detectChanges();
+    component.discrepancies.set([
+      { ...mockDiscrepancy, discrepancy_type: 'STATUS_MISMATCH' },
+      { ...mockDiscrepancy, discrepancy_id: 'd2', discrepancy_type: 'AMOUNT_MISMATCH' },
+    ]);
+    component.typeFilter = 'AMOUNT_MISMATCH';
+    const filtered = component.filteredDiscrepancies();
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].discrepancy_type).toBe('AMOUNT_MISMATCH');
+  });
+
+  it('should show all discrepancies when no filters applied', () => {
+    fixture.detectChanges();
+    component.typeFilter = '';
+    component.dateFrom = '';
+    component.dateTo = '';
+    const filtered = component.filteredDiscrepancies();
+    expect(filtered.length).toBe(component.discrepancies().length);
+  });
+
+  it('pendingCount should decrease after resolving', () => {
+    fixture.detectChanges();
+    component.discrepancies.set([{ ...mockDiscrepancy }]);
+    const before = component.pendingCount();
+    component.openResolveForm(mockDiscrepancy);
+    component.resolveJustification = 'OK';
+    component.confirmResolve(mockDiscrepancy);
+    expect(component.pendingCount()).toBe(before - 1);
+  });
+
+  it('should handle justification with only whitespace', () => {
+    fixture.detectChanges();
+    component.openResolveForm(mockDiscrepancy);
+    component.resolveJustification = '   ';
+    component.confirmResolve(mockDiscrepancy);
+    expect(serviceSpy.resolveDiscrepancy).not.toHaveBeenCalled();
+  });
+
+  it('ngOnDestroy should clean up', () => {
+    fixture.detectChanges();
+    expect(() => component.ngOnDestroy()).not.toThrow();
   });
 });
