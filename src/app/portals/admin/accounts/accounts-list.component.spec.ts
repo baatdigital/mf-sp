@@ -62,4 +62,25 @@ describe('AccountsListComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.isLoading()).toBeFalse();
   });
+
+  // ─── Regresión responsive (ISS-000) ─────────────────────────────
+  // Verifica que el wrapper de tabla usa overflow-x:auto, no overflow:hidden,
+  // para evitar scroll horizontal en la página en móvil (360-430px).
+  it('[responsive] accounts-table-wrapper should not use overflow:hidden', () => {
+    const fixture = TestBed.createComponent(AccountsListComponent);
+    fixture.detectChanges();
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const wrapper = nativeEl.querySelector('.accounts-table-wrapper') as HTMLElement | null;
+    expect(wrapper).withContext('accounts-table-wrapper debe existir cuando hay cuentas').toBeTruthy();
+    // overflow:hidden en contenedor de tabla causa scroll de página en móvil.
+    expect(getComputedStyle(wrapper!).overflow).not.toBe('hidden');
+  });
+
+  it('[responsive] accounts-table should be inside the scrollable wrapper', () => {
+    const fixture = TestBed.createComponent(AccountsListComponent);
+    fixture.detectChanges();
+    const wrapper = (fixture.nativeElement as HTMLElement).querySelector('.accounts-table-wrapper');
+    const table = wrapper?.querySelector('table.accounts-table');
+    expect(table).withContext('la tabla debe ser descendiente del wrapper con scroll').toBeTruthy();
+  });
 });

@@ -1,0 +1,37 @@
+name: CI - Lint + Test + Build
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint + Test + Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'yarn'
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Unit tests (Karma headless)
+        run: yarn test --browsers=ChromeHeadlessNoSandbox --watch=false --code-coverage
+        env:
+          CHROME_BIN: /usr/bin/google-chrome-stable
+
+      - name: Build production
+        run: yarn build:prod

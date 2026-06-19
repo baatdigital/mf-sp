@@ -108,4 +108,32 @@ describe('MovementsTableComponent', () => {
     const entry = makeLedgerEntry({ entry_id: 'e99' });
     expect(component.trackById(0, entry)).toBe('e99');
   });
+
+  // ─── Regresión responsive (ISS-000) ─────────────────────────────
+  // Verifica que el contenedor de tabla tiene overflow-x:auto (no hidden)
+  // y que las tablas están dentro de un wrapper con scroll horizontal.
+  it('[responsive] container should have overflow-x:auto, not overflow:hidden', () => {
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('isLoading', false);
+    fixture.detectChanges();
+    const container = (fixture.nativeElement as HTMLElement).querySelector(
+      '.movements-table-container'
+    ) as HTMLElement | null;
+    expect(container).toBeTruthy();
+    const style = getComputedStyle(container!);
+    // overflow:hidden en un wrapper de tabla causa scroll horizontal en la página.
+    // El valor debe ser 'auto' o 'scroll', nunca 'hidden'.
+    expect(style.overflowX).not.toBe('hidden');
+  });
+
+  it('[responsive] data table should be a descendant of the scrollable container', () => {
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('isLoading', false);
+    fixture.detectChanges();
+    const container = (fixture.nativeElement as HTMLElement).querySelector(
+      '.movements-table-container'
+    );
+    const table = container?.querySelector('table.movements-table');
+    expect(table).toBeTruthy();
+  });
 });
