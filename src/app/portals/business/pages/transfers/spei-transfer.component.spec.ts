@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { signal } from '@angular/core';
 import { SpeiTransferComponent } from './spei-transfer.component';
 import { SharedStateService } from '@shared-state';
@@ -203,9 +203,10 @@ describe('SpeiTransferComponent', () => {
   });
 
   it('debe bloquear doble-submit con _submitLock (DJ-FQ-01)', async () => {
-    businessServiceSpy.sendSpei.and.returnValue(
-      of({ success: true, data: mockTransfer })
-    );
+    // Usar Subject en lugar de of() para que el lock NO se libere antes del segundo click
+    const pending$ = new Subject<{ success: boolean; data: typeof mockTransfer }>();
+    businessServiceSpy.sendSpei.and.returnValue(pending$.asObservable());
+
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -218,12 +219,16 @@ describe('SpeiTransferComponent', () => {
       reference: '',
     });
 
-    // Llamar onSubmit dos veces seguidas — solo debe ejecutar una llamada HTTP
+    // Primer submit: lock se setea a true, HTTP call inicia pero no completa
     component.onSubmit();
+    // Segundo submit inmediato: debe ser bloqueado por _submitLock
     component.onSubmit();
-    await fixture.whenStable();
 
+    // Solo un HTTP call debio realizarse
     expect(businessServiceSpy.sendSpei).toHaveBeenCalledTimes(1);
+
+    // Limpiar Subject
+    pending$.complete();
   });
 
   it('debe generar idempotency key distinto despues de resetForm (DJ-FQ-01)', async () => {

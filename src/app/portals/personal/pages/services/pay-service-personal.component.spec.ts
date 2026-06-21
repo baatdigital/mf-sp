@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { PayServicePersonalComponent } from './pay-service-personal.component';
 import { ServicesBillpayService } from '../../services/services-billpay.service';
@@ -154,14 +154,20 @@ describe('PayServicePersonalComponent', () => {
 
   // DJ-FQ-04: lock atomico contra doble-pago
   it('debe bloquear doble-tap con _payLock — solo ejecuta un payBill (DJ-FQ-04)', () => {
+    // Usar Subject para que el lock NO se libere sincronicamente antes del segundo tap
+    const pending$ = new Subject<ReturnType<typeof billpayServiceSpy.payBill> extends import('rxjs').Observable<infer T> ? T : never>();
+    billpayServiceSpy.payBill.and.returnValue(pending$ as unknown as ReturnType<typeof billpayServiceSpy.payBill>);
+
     component.referenceForm.patchValue({ reference: 'C12345' });
     component.consultBill();
 
-    // Simular doble-tap rapidamente
+    // Primer tap: lock = true, Observable no completa todavia
     component.executePay();
+    // Segundo tap inmediato: bloqueado por _payLock
     component.executePay();
 
     expect(billpayServiceSpy.payBill).toHaveBeenCalledTimes(1);
+    pending$.complete();
   });
 
   it('debe generar idempotency key al recibir el recibo, no en el click (DJ-FQ-04)', () => {
