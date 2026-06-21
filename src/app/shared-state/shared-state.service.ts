@@ -159,11 +159,17 @@ export class SharedStateService {
       if (!raw) return DEFAULT_AUTH;
       const data = JSON.parse(raw) as Record<string, unknown>;
       const token = (data['access_token'] ?? data['accessToken'] ?? null) as string | null;
+      const expiresAt = (data['expires_at'] ?? data['expiresAt'] ?? null) as number | null;
+
+      // DJ-FS-07: verificar expiracion del token — un token vencido no es autenticado
+      const now = Date.now();
+      const isExpired = expiresAt !== null && expiresAt < now;
+
       return {
-        isAuthenticated: !!token,
+        isAuthenticated: !!token && !isExpired,
         accessToken: token,
         refreshToken: (data['refresh_token'] ?? data['refreshToken'] ?? null) as string | null,
-        expiresAt: (data['expires_at'] ?? data['expiresAt'] ?? null) as number | null,
+        expiresAt,
       };
     } catch {
       return DEFAULT_AUTH;

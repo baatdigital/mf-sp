@@ -2,6 +2,7 @@
  * Tests: SendMoneyComponent
  *
  * Verifica el flujo de 3 pasos para envio SPEI del portal B2C.
+ * Usa CLABEs con checksum correcto (DJ-FQ-03).
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -14,6 +15,10 @@ import { SharedStateService } from '@shared-state';
 import { AccountsAdapter } from '@infrastructure/adapters/accounts.adapter';
 import { PersonalService } from '../../services/personal.service';
 
+// CLABEs con checksum correcto (Banxico mod-10)
+const VALID_CLABE_STP  = '646180110400000007';
+const VALID_CLABE_BBVA = '012180015900231112'; // BBVA
+
 const mockAccount = {
   account_id: 'acc-001',
   organization_id: 'org-001',
@@ -21,7 +26,7 @@ const mockAccount = {
   status: 'ACTIVE' as const,
   balance: 10000,
   available_balance: 9000,
-  clabe: '123456789012345678',
+  clabe: VALID_CLABE_STP,
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -29,7 +34,7 @@ const mockTransfer = {
   transfer_id: 'txn-001',
   organization_id: 'org-001',
   source_account_id: 'acc-001',
-  destination_clabe: '987654321098765432',
+  destination_clabe: VALID_CLABE_BBVA,
   destination_name: 'Juan Perez',
   amount: 500,
   concept: 'Pago renta',
@@ -101,21 +106,29 @@ describe('SendMoneyComponent', () => {
     expect(mockAccountsAdapter.getAccounts).toHaveBeenCalledWith('org-001');
   });
 
-  it('no debe avanzar al paso 2 si la CLABE es invalida', () => {
+  it('no debe avanzar al paso 2 si la CLABE es invalida (formato)', () => {
     component.clabeForm.setValue({ clabe: '123', destinationName: 'Juan' });
     component.goToStep2();
     expect(component.currentStep()).toBe(1);
   });
 
+  it('no debe avanzar si CLABE tiene 18 digitos pero checksum incorrecto (DJ-FQ-03)', () => {
+    // 646180110400000008 — checksum deberia ser 7, no 8
+    component.clabeForm.setValue({ clabe: '646180110400000008', destinationName: 'Juan' });
+    component.goToStep2();
+    expect(component.currentStep()).toBe(1);
+    expect(component.clabeForm.get('clabe')?.errors?.['clabeChecksum']).toBeTrue();
+  });
+
   it('no debe avanzar si el nombre del beneficiario esta vacio', () => {
-    component.clabeForm.setValue({ clabe: '123456789012345678', destinationName: '' });
+    component.clabeForm.setValue({ clabe: VALID_CLABE_STP, destinationName: '' });
     component.goToStep2();
     expect(component.currentStep()).toBe(1);
   });
 
-  it('debe avanzar al paso 2 con CLABE valida y nombre', () => {
+  it('debe avanzar al paso 2 con CLABE valida (checksum correcto) y nombre (DJ-FQ-03)', () => {
     component.clabeForm.setValue({
-      clabe: '123456789012345678',
+      clabe: VALID_CLABE_STP,
       destinationName: 'Juan Perez',
     });
     component.goToStep2();
@@ -124,7 +137,7 @@ describe('SendMoneyComponent', () => {
 
   it('debe regresar al paso 1 desde paso 2', () => {
     component.clabeForm.setValue({
-      clabe: '123456789012345678',
+      clabe: VALID_CLABE_STP,
       destinationName: 'Juan Perez',
     });
     component.goToStep2();
@@ -134,7 +147,7 @@ describe('SendMoneyComponent', () => {
 
   it('debe enviar transferencia y avanzar al paso 3', async () => {
     component.clabeForm.setValue({
-      clabe: '987654321098765432',
+      clabe: VALID_CLABE_BBVA,
       destinationName: 'Juan Perez',
     });
     component.goToStep2();
@@ -150,13 +163,68 @@ describe('SendMoneyComponent', () => {
     expect(component.completedTransfer()).toEqual(mockTransfer);
   });
 
-  it('debe mostrar error cuando falla el envio', async () => {
+  it('debe enviar idempotency_key en el request (DJ-FQ-01)', async () => {
+    component.clabeForm.setValue({
+      clabe: VALID_CLABE_BBVA,
+      destinationName: 'Juan Perez',
+    });
+    component.goToStep2();
+    component.amountForm.setValue({ amount: 500, concept: 'Pago renta' });
+    component.submitTransfer();
+
+    await fixture.whenStable();
+
+    expect(mockPersonalService.sendSpei).toHaveBeenCalledWith(
+      'org-001',
+      jasmine.objectContaining({ idempotency_key: jasmine.any(String) })
+    );
+  });
+
+  it('debe bloquear doble-submit con _submitLock (DJ-FQ-01)', async () => {
+    component.clabeForm.setValue({
+      clabe: VALID_CLABE_BBVA,
+      destinationName: 'Juan Perez',
+    });
+    component.goToStep2();
+    component.amountForm.setValue({ amount: 500, concept: 'Pago renta' });
+
+    // Llamar dos veces seguidas
+    component.submitTransfer();
+    component.submitTransfer();
+
+    await fixture.whenStable();
+
+    expect(mockPersonalService.sendSpei).toHaveBeenCalledTimes(1);
+  });
+
+  it('debe extraer mensaje de error real del backend (DJ-FQ-07)', async () => {
+    mockPersonalService.sendSpei.and.returnValue(
+      throwError(() => ({ error: { detail: 'Saldo insuficiente' } }))
+    );
+
+    component.clabeForm.setValue({
+      clabe: VALID_CLABE_BBVA,
+      destinationName: 'Juan Perez',
+    });
+    component.goToStep2();
+    component.amountForm.setValue({ amount: 500, concept: 'Pago renta' });
+    component.submitTransfer();
+
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.error()).toBe('Saldo insuficiente');
+    expect(component.currentStep()).toBe(2);
+    expect(component.isLoading()).toBeFalse();
+  });
+
+  it('debe mostrar error cuando falla el envio (mensaje generico)', async () => {
     mockPersonalService.sendSpei.and.returnValue(
       throwError(() => new Error('Transfer failed'))
     );
 
     component.clabeForm.setValue({
-      clabe: '987654321098765432',
+      clabe: VALID_CLABE_BBVA,
       destinationName: 'Juan Perez',
     });
     component.goToStep2();
@@ -173,7 +241,7 @@ describe('SendMoneyComponent', () => {
 
   it('debe limpiar formularios al iniciar nueva transferencia', () => {
     component.clabeForm.setValue({
-      clabe: '987654321098765432',
+      clabe: VALID_CLABE_BBVA,
       destinationName: 'Juan',
     });
     component.startNewTransfer();
@@ -182,9 +250,16 @@ describe('SendMoneyComponent', () => {
     expect(component.completedTransfer()).toBeNull();
   });
 
+  it('debe regenerar idempotency key al iniciar nueva transferencia (DJ-FQ-01)', () => {
+    const key1 = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    component.startNewTransfer();
+    const key2 = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    expect(key1).not.toBe(key2);
+  });
+
   it('no debe enviar si el monto es menor a 1', () => {
     component.clabeForm.setValue({
-      clabe: '987654321098765432',
+      clabe: VALID_CLABE_BBVA,
       destinationName: 'Juan',
     });
     component.goToStep2();

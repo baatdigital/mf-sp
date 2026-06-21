@@ -41,6 +41,15 @@ interface PayResult {
   amount: number;
 }
 
+/** Genera un idempotency key UUID v4 simple */
+function generateIdempotencyKey(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 @Component({
   selector: 'sp-pay-service-personal',
   standalone: true,
@@ -473,6 +482,19 @@ export class PayServicePersonalComponent implements OnInit {
   private serviceId = '';
   private reference = '';
 
+  /**
+   * Lock atomico para prevenir doble-pago (DJ-FQ-04).
+   * Evaluado y seteado sincronicamente como primera linea de executePay().
+   */
+  private _payLock = false;
+
+  /**
+   * Idempotency key generado al recibir el resultado de consultBill(),
+   * no al momento del click en "Pagar" (DJ-FQ-04).
+   * Asi un doble-tap rapido en el mismo ms usara la misma key.
+   */
+  private _idempotencyKey = '';
+
   readonly referenceForm: FormGroup = this.fb.group({
     reference: ['', [Validators.required, Validators.minLength(5)]],
   });
@@ -510,6 +532,9 @@ export class PayServicePersonalComponent implements OnInit {
           holder_name: response.data.holder_name,
           due_date: response.data.due_date,
         });
+        // DJ-FQ-04: generar idempotency key al recibir el recibo, no al click de pago
+        this._idempotencyKey = generateIdempotencyKey();
+        this._payLock = false;
         this.isQuerying.set(false);
       },
       error: () => {
@@ -520,11 +545,17 @@ export class PayServicePersonalComponent implements OnInit {
   }
 
   executePay(): void {
+    // DJ-FQ-04: lock atomico — evaluado y seteado sincronicamente antes de cualquier async
+    if (this._payLock) return;
+    this._payLock = true;
+
     const bill = this.billInfo();
-    if (!bill) return;
+    if (!bill) {
+      this._payLock = false;
+      return;
+    }
 
     const accountId = this.billpayService.getActiveAccountId();
-    const idempotencyKey = Date.now().toString(36);
 
     this.isPaying.set(true);
     this.queryError.set(null);
@@ -534,7 +565,8 @@ export class PayServicePersonalComponent implements OnInit {
       reference: this.reference,
       amount: bill.amount,
       account_id: accountId,
-      idempotency_key: idempotencyKey,
+      // DJ-FQ-04: usar key generado al recibir el recibo (no Date.now() en el click)
+      idempotency_key: this._idempotencyKey,
     }).subscribe({
       next: (response) => {
         this.payResult.set({
@@ -544,6 +576,7 @@ export class PayServicePersonalComponent implements OnInit {
           amount: bill.amount,
         });
         this.isPaying.set(false);
+        this._payLock = false;
         this.currentStep.set(2);
       },
       error: (err) => {
@@ -555,6 +588,7 @@ export class PayServicePersonalComponent implements OnInit {
           amount: bill.amount,
         });
         this.isPaying.set(false);
+        this._payLock = false;
         this.currentStep.set(2);
       },
     });
@@ -563,12 +597,17 @@ export class PayServicePersonalComponent implements OnInit {
   clearBillInfo(): void {
     this.billInfo.set(null);
     this.queryError.set(null);
+    // Limpiar lock e idempotency key al cambiar referencia
+    this._payLock = false;
+    this._idempotencyKey = '';
   }
 
   retryPay(): void {
     this.payResult.set(null);
     this.billInfo.set(null);
     this.queryError.set(null);
+    this._payLock = false;
+    this._idempotencyKey = '';
     this.currentStep.set(1);
   }
 

@@ -22,7 +22,6 @@ import {
   FormGroup,
   Validators,
   AbstractControl,
-  ValidationErrors,
 } from '@angular/forms';
 import { SharedStateService } from '@shared-state';
 import { AccountsAdapter } from '@infrastructure/adapters/accounts.adapter';
@@ -30,14 +29,17 @@ import { PersonalService } from '../../services/personal.service';
 import { TransferStatusTrackerComponent } from '../../../../shared/components/index';
 import { SpeiTransfer } from '@domain/models/transfer.model';
 import { FinancialAccount } from '@domain/models/financial-account.model';
+import { clabeChecksumValidator } from '../../../../core/clabe';
 
 type Step = 1 | 2 | 3;
 
-/** Validador de CLABE mexicana (18 digitos numericos) */
-function clabeValidator(control: AbstractControl): ValidationErrors | null {
-  const value = (control.value ?? '').replace(/\s/g, '');
-  if (!value) return null;
-  return /^\d{18}$/.test(value) ? null : { clabeInvalid: true };
+/** Genera un idempotency key UUID v4 simple */
+function generateIdempotencyKey(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 @Component({
@@ -97,7 +99,9 @@ function clabeValidator(control: AbstractControl): ValidationErrors | null {
             @if (clabeControl.touched && clabeControl.hasError('required')) {
               <span class="field-error">La CLABE es obligatoria.</span>
             } @else if (clabeControl.touched && clabeControl.hasError('clabeInvalid')) {
-              <span class="field-error">La CLABE debe tener exactamente 18 digitos.</span>
+              <span class="field-error">La CLABE debe tener exactamente 18 digitos numericos.</span>
+            } @else if (clabeControl.touched && clabeControl.hasError('clabeChecksum')) {
+              <span class="field-error">El digito verificador de la CLABE es incorrecto. Verifica los 18 digitos.</span>
             }
           </div>
           <div class="form-group">
@@ -508,8 +512,18 @@ export class SendMoneyComponent implements OnInit {
 
   private readonly activeAccount = signal<FinancialAccount | null>(null);
 
+  /**
+   * Lock atomico para prevenir doble-submit (DJ-FQ-01).
+   * Evaluado y seteado sincronicamente como primera linea de submitTransfer().
+   */
+  private _submitLock = false;
+
+  /** Idempotency key generado al iniciar el flujo, no en el click (DJ-FQ-01). */
+  private _idempotencyKey = generateIdempotencyKey();
+
+  // DJ-FQ-03: usar validador con checksum mod-10
   readonly clabeForm: FormGroup = this.fb.group({
-    clabe: ['', [Validators.required, clabeValidator]],
+    clabe: ['', [Validators.required, clabeChecksumValidator]],
     destinationName: ['', Validators.required],
   });
 
@@ -552,8 +566,13 @@ export class SendMoneyComponent implements OnInit {
   }
 
   submitTransfer(): void {
+    // DJ-FQ-01: lock atomico — evaluado y seteado sincronicamente antes de cualquier async
+    if (this._submitLock) return;
+    this._submitLock = true;
+
     if (this.amountForm.invalid) {
       this.amountForm.markAllAsTouched();
+      this._submitLock = false;
       return;
     }
 
@@ -562,6 +581,7 @@ export class SendMoneyComponent implements OnInit {
 
     if (!orgId || !account) {
       this.error.set('No se pudo determinar la cuenta de origen. Intente de nuevo.');
+      this._submitLock = false;
       return;
     }
 
@@ -574,17 +594,26 @@ export class SendMoneyComponent implements OnInit {
       destination_name: this.clabeForm.value.destinationName,
       amount: Number(this.amountForm.value.amount),
       concept: this.amountForm.value.concept,
+      idempotency_key: this._idempotencyKey,
     };
 
     this.personalService.sendSpei(orgId, request).subscribe({
       next: (response) => {
         this.completedTransfer.set(response.data);
         this.isLoading.set(false);
+        this._submitLock = false;
         this.goToStep(3);
       },
-      error: () => {
+      error: (err) => {
+        // DJ-FQ-07: extraer mensaje real del backend en lugar de mensaje fijo
+        const msg =
+          err?.error?.detail ??
+          err?.error?.message ??
+          err?.message ??
+          'No se pudo procesar la transferencia.';
         this.isLoading.set(false);
-        this.error.set('No se pudo procesar la transferencia. Verifica los datos e intenta de nuevo.');
+        this._submitLock = false;
+        this.error.set(msg);
       },
     });
   }
@@ -594,6 +623,9 @@ export class SendMoneyComponent implements OnInit {
     this.amountForm.reset();
     this.completedTransfer.set(null);
     this.error.set(null);
+    this._submitLock = false;
+    // Regenerar idempotency key para nueva transferencia (DJ-FQ-01)
+    this._idempotencyKey = generateIdempotencyKey();
     this.goToStep(1);
   }
 

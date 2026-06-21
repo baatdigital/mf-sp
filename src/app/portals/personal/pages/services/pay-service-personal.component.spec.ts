@@ -152,6 +152,52 @@ describe('PayServicePersonalComponent', () => {
     expect(billpayServiceSpy.payBill).not.toHaveBeenCalled();
   });
 
+  // DJ-FQ-04: lock atomico contra doble-pago
+  it('debe bloquear doble-tap con _payLock — solo ejecuta un payBill (DJ-FQ-04)', () => {
+    component.referenceForm.patchValue({ reference: 'C12345' });
+    component.consultBill();
+
+    // Simular doble-tap rapidamente
+    component.executePay();
+    component.executePay();
+
+    expect(billpayServiceSpy.payBill).toHaveBeenCalledTimes(1);
+  });
+
+  it('debe generar idempotency key al recibir el recibo, no en el click (DJ-FQ-04)', () => {
+    component.referenceForm.patchValue({ reference: 'C12345' });
+
+    const keyBefore = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    expect(keyBefore).toBe(''); // No generado aun
+
+    component.consultBill();
+
+    const keyAfter = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    expect(keyAfter).not.toBe(''); // Generado tras recibir el recibo
+    expect(keyAfter.length).toBeGreaterThan(10);
+  });
+
+  it('debe limpiar idempotency key y lock al clearBillInfo (DJ-FQ-04)', () => {
+    component.referenceForm.patchValue({ reference: 'C12345' });
+    component.consultBill();
+    expect((component as unknown as Record<string, unknown>)['_idempotencyKey']).not.toBe('');
+
+    component.clearBillInfo();
+
+    expect((component as unknown as Record<string, unknown>)['_idempotencyKey']).toBe('');
+    expect((component as unknown as Record<string, unknown>)['_payLock']).toBeFalse();
+  });
+
+  it('debe limpiar idempotency key y lock al retryPay (DJ-FQ-04)', () => {
+    component.referenceForm.patchValue({ reference: 'C12345' });
+    component.consultBill();
+    component.executePay();
+    component.retryPay();
+
+    expect((component as unknown as Record<string, unknown>)['_idempotencyKey']).toBe('');
+    expect((component as unknown as Record<string, unknown>)['_payLock']).toBeFalse();
+  });
+
   it('should set nickname via setNickname', () => {
     const event = { target: { value: 'Casa' } } as unknown as Event;
     component.setNickname(event);
