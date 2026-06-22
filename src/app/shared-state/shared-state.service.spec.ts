@@ -78,10 +78,11 @@ describe('SharedStateService', () => {
 
   describe('rehydrate con auth data', () => {
     it('debe leer access_token como accessToken', () => {
+      const futureTs = Date.now() + 3_600_000; // 1 hora en el futuro
       localStorage.setItem('covacha:auth', JSON.stringify({
         access_token: 'token-abc',
         refresh_token: 'refresh-xyz',
-        expires_at: 9999999,
+        expires_at: futureTs,
       }));
 
       service.rehydrate();
@@ -89,14 +90,15 @@ describe('SharedStateService', () => {
       expect(service.isAuthenticated()).toBeTrue();
       expect(service.accessToken()).toBe('token-abc');
       expect(service.auth().refreshToken).toBe('refresh-xyz');
-      expect(service.auth().expiresAt).toBe(9999999);
+      expect(service.auth().expiresAt).toBe(futureTs);
     });
 
     it('debe leer accessToken (camelCase) como fallback', () => {
+      const futureTs = Date.now() + 3_600_000; // 1 hora en el futuro
       localStorage.setItem('covacha:auth', JSON.stringify({
         accessToken: 'token-camel',
         refreshToken: 'refresh-camel',
-        expiresAt: 1234567,
+        expiresAt: futureTs,
       }));
 
       service.rehydrate();
@@ -109,6 +111,48 @@ describe('SharedStateService', () => {
       localStorage.setItem('covacha:auth', JSON.stringify({}));
       service.rehydrate();
       expect(service.isAuthenticated()).toBeFalse();
+    });
+
+    // DJ-FS-07: verificacion de expiracion del token
+    it('debe reportar isAuthenticated=false si el token ha expirado (DJ-FS-07)', () => {
+      const pastTimestamp = Date.now() - 60_000; // hace 1 minuto
+      localStorage.setItem('covacha:auth', JSON.stringify({
+        access_token: 'expired-token',
+        expires_at: pastTimestamp,
+      }));
+      service.rehydrate();
+      expect(service.isAuthenticated()).toBeFalse();
+    });
+
+    it('debe reportar isAuthenticated=true si el token no ha expirado (DJ-FS-07)', () => {
+      const futureTimestamp = Date.now() + 3_600_000; // en 1 hora
+      localStorage.setItem('covacha:auth', JSON.stringify({
+        access_token: 'valid-token',
+        expires_at: futureTimestamp,
+      }));
+      service.rehydrate();
+      expect(service.isAuthenticated()).toBeTrue();
+    });
+
+    it('debe reportar isAuthenticated=true si expiresAt es null (sin fecha de expiracion) (DJ-FS-07)', () => {
+      localStorage.setItem('covacha:auth', JSON.stringify({
+        access_token: 'token-sin-expiry',
+        expires_at: null,
+      }));
+      service.rehydrate();
+      expect(service.isAuthenticated()).toBeTrue();
+    });
+
+    it('debe preservar el accessToken aunque el token este expirado (para refresh) (DJ-FS-07)', () => {
+      const pastTimestamp = Date.now() - 60_000;
+      localStorage.setItem('covacha:auth', JSON.stringify({
+        access_token: 'expired-token',
+        expires_at: pastTimestamp,
+      }));
+      service.rehydrate();
+      // isAuthenticated=false pero el token sigue disponible para que el refresh lo use
+      expect(service.auth().accessToken).toBe('expired-token');
+      expect(service.auth().expiresAt).toBe(pastTimestamp);
     });
   });
 
