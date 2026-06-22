@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { signal } from '@angular/core';
 import { SpeiTransferComponent } from './spei-transfer.component';
 import { SharedStateService } from '@shared-state';
@@ -26,7 +26,7 @@ const mockTransfer: SpeiTransfer = {
   transfer_id: 'txn-1',
   organization_id: 'org-1',
   source_account_id: 'acc-1',
-  destination_clabe: '646180123456789012',
+  destination_clabe: '646180110400000007',
   destination_name: 'Juan Perez',
   amount: 1000,
   concept: 'Pago de servicios',
@@ -88,16 +88,30 @@ describe('SpeiTransferComponent', () => {
     expect(component.sourceAccounts().length).toBe(1);
   });
 
-  it('should validate CLABE as 18 digits', () => {
+  it('debe rechazar CLABE de 18 digitos con checksum incorrecto (DJ-FQ-03)', () => {
+    fixture.detectChanges();
+    const clabeCtrl = component.form.get('destinationClabe');
+    // 646180110400000008 — mismo formato pero ultimo digito incorrecto
+    clabeCtrl?.setValue('646180110400000008');
+    clabeCtrl?.markAsTouched();
+    expect(clabeCtrl?.invalid).toBeTrue();
+    expect(clabeCtrl?.errors?.['clabeChecksum']).toBeTrue();
+  });
+
+  it('debe aceptar CLABE con checksum correcto (DJ-FQ-03)', () => {
+    fixture.detectChanges();
+    const clabeCtrl = component.form.get('destinationClabe');
+    clabeCtrl?.setValue('646180110400000007'); // checksum correcto
+    expect(clabeCtrl?.valid).toBeTrue();
+  });
+
+  it('should validate CLABE format (18 digits required)', () => {
     fixture.detectChanges();
     const clabeCtrl = component.form.get('destinationClabe');
     clabeCtrl?.setValue('12345'); // too short
     clabeCtrl?.markAsTouched();
     expect(clabeCtrl?.invalid).toBeTrue();
-    expect(clabeCtrl?.errors?.['invalidClabe']).toBeTrue();
-
-    clabeCtrl?.setValue('646180123456789012'); // valid 18-digit CLABE
-    expect(clabeCtrl?.valid).toBeTrue();
+    expect(clabeCtrl?.errors?.['clabeInvalid']).toBeTrue();
   });
 
   it('should reject non-positive amount', () => {
@@ -120,7 +134,7 @@ describe('SpeiTransferComponent', () => {
 
     component.form.setValue({
       sourceAccountId: 'acc-1',
-      destinationClabe: '646180123456789012',
+      destinationClabe: '646180110400000007',
       destinationName: 'Juan Perez',
       amount: 1000,
       concept: 'Pago servicios',
@@ -134,14 +148,38 @@ describe('SpeiTransferComponent', () => {
       'org-1',
       jasmine.objectContaining({
         source_account_id: 'acc-1',
-        destination_clabe: '646180123456789012',
+        destination_clabe: '646180110400000007',
         amount: 1000,
-      })
+      }),
+      jasmine.objectContaining({ 'X-Idempotency-Key': jasmine.any(String) })
     );
     expect(component.submittedTransfer()).toEqual(mockTransfer);
   });
 
-  it('should set submitError when sendSpei fails', async () => {
+  it('debe extraer mensaje de error del backend (DJ-FQ-06)', async () => {
+    businessServiceSpy.sendSpei.and.returnValue(
+      throwError(() => ({ error: { detail: 'Saldo insuficiente' } }))
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.form.setValue({
+      sourceAccountId: 'acc-1',
+      destinationClabe: '646180110400000007',
+      destinationName: 'Juan Perez',
+      amount: 1000,
+      concept: 'Pago servicios',
+      reference: '',
+    });
+
+    component.onSubmit();
+    await fixture.whenStable();
+
+    expect(component.submitError()).toBe('Saldo insuficiente');
+    expect(component.isSubmitting()).toBeFalse();
+  });
+
+  it('debe usar mensaje generico cuando el backend no envia detalle', async () => {
     businessServiceSpy.sendSpei.and.returnValue(
       throwError(() => new Error('Server error'))
     );
@@ -150,7 +188,7 @@ describe('SpeiTransferComponent', () => {
 
     component.form.setValue({
       sourceAccountId: 'acc-1',
-      destinationClabe: '646180123456789012',
+      destinationClabe: '646180110400000007',
       destinationName: 'Juan Perez',
       amount: 1000,
       concept: 'Pago servicios',
@@ -164,22 +202,88 @@ describe('SpeiTransferComponent', () => {
     expect(component.isSubmitting()).toBeFalse();
   });
 
+  it('debe bloquear doble-submit con _submitLock (DJ-FQ-01)', async () => {
+    // Usar Subject en lugar de of() para que el lock NO se libere antes del segundo click
+    const pending$ = new Subject<{ success: boolean; data: typeof mockTransfer }>();
+    businessServiceSpy.sendSpei.and.returnValue(pending$.asObservable());
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.form.setValue({
+      sourceAccountId: 'acc-1',
+      destinationClabe: '646180110400000007',
+      destinationName: 'Juan Perez',
+      amount: 1000,
+      concept: 'Pago servicios',
+      reference: '',
+    });
+
+    // Primer submit: lock se setea a true, HTTP call inicia pero no completa
+    component.onSubmit();
+    // Segundo submit inmediato: debe ser bloqueado por _submitLock
+    component.onSubmit();
+
+    // Solo un HTTP call debio realizarse
+    expect(businessServiceSpy.sendSpei).toHaveBeenCalledTimes(1);
+
+    // Limpiar Subject
+    pending$.complete();
+  });
+
+  it('debe generar idempotency key distinto despues de resetForm (DJ-FQ-01)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const key1 = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    component.resetForm();
+    const key2 = (component as unknown as Record<string, unknown>)['_idempotencyKey'] as string;
+    expect(key1).not.toBe('');
+    expect(key2).not.toBe('');
+    expect(key1).not.toBe(key2);
+  });
+
   it('should mark form as touched and not submit when form is invalid', () => {
     fixture.detectChanges();
-    // Form is empty and invalid
     component.onSubmit();
     expect(businessServiceSpy.sendSpei).not.toHaveBeenCalled();
     expect(component.form.touched).toBeTrue();
   });
 
   it('should reset form when resetForm is called', async () => {
-    businessServiceSpy.sendSpei.and.returnValue(
-      of({ success: true, data: mockTransfer })
-    );
     fixture.detectChanges();
     component.submittedTransfer.set(mockTransfer);
     component.resetForm();
     expect(component.submittedTransfer()).toBeNull();
     expect(component.submitError()).toBeNull();
+  });
+
+  it('debe mostrar loadError y permitir reintentar cuando loadAccounts falla (DJ-FQ-11)', async () => {
+    accountsAdapterSpy.getAccounts.and.returnValue(
+      throwError(() => new Error('Network error'))
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.loadError()).toBeTruthy();
+    expect(component.loadingAccounts()).toBeFalse();
+  });
+
+  it('debe limpiar loadError y recargar cuentas al reintentar (DJ-FQ-11)', async () => {
+    accountsAdapterSpy.getAccounts.and.returnValue(
+      throwError(() => new Error('Network error'))
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Ahora simular recuperacion de red
+    accountsAdapterSpy.getAccounts.and.returnValue(
+      of({ success: true, data: [mockAccount] })
+    );
+    component.loadAccounts();
+    await fixture.whenStable();
+
+    expect(component.loadError()).toBeNull();
+    expect(component.sourceAccounts().length).toBe(1);
   });
 });
