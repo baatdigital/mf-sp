@@ -81,11 +81,17 @@ export class BusinessService {
 
   /**
    * Envia una transferencia SPEI.
+   * @param extraHeaders Headers adicionales (ej. X-Idempotency-Key para prevencion de doble-pago)
    */
-  sendSpei(orgId: string, body: SpeiTransferBody): Observable<any> {
+  sendSpei(
+    orgId: string,
+    body: SpeiTransferBody,
+    extraHeaders?: Record<string, string>
+  ): Observable<any> {
     return this.http.post<any>(
       `${this.apiUrl}/organizations/${orgId}/spei/transfers`,
-      body
+      body,
+      extraHeaders ? { headers: extraHeaders } : undefined
     );
   }
 

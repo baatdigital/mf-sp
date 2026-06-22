@@ -24,6 +24,7 @@ import {
 import { AccountsAdapter } from '@infrastructure/adapters/accounts.adapter';
 import { SharedStateService } from '@shared-state';
 import { FinancialAccount } from '../../../../domain/models/financial-account.model';
+import { generateIdempotencyKey } from '../../../../core/idempotency';
 
 @Component({
   selector: 'sp-pay-service',
@@ -641,6 +642,17 @@ export class PayServiceComponent implements OnInit {
 
   readonly stepLabels = ['Consultar', 'Confirmar', 'Resultado'];
 
+  /**
+   * Lock atómico para prevenir doble-click en confirmarPago.
+   * Evaluado y seteado sincrónicamente antes de cualquier llamada async.
+   */
+  private _submitLock = false;
+
+  /**
+   * Idempotency key generado al consultar el servicio (paso 1), regenerado al reintentar pago.
+   */
+  private _idempotencyKey = '';
+
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
       this.serviceId = params['service_id'] ?? '';
@@ -661,9 +673,13 @@ export class PayServiceComponent implements OnInit {
   consultarBill(): void {
     if (!this.reference.trim()) { return; }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
     this.error.set(null);
     this.queryResult.set(null);
+
+    // Generar idempotency key al consultar (no al confirmar pago)
+    this._idempotencyKey = generateIdempotencyKey();
 
     this.billpayService.queryBill(orgId, this.serviceId, this.reference.trim()).subscribe({
       next: (res) => {
@@ -692,6 +708,7 @@ export class PayServiceComponent implements OnInit {
   /** Cargar cuentas de la organizacion para el dropdown */
   private loadAccounts(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
 
     this.accountsAdapter.getAccounts(orgId).subscribe({
@@ -709,10 +726,24 @@ export class PayServiceComponent implements OnInit {
 
   /** Paso 2: Confirmar y ejecutar el pago */
   confirmarPago(): void {
-    if (!this.selectedAccountId) { return; }
+    // Lock atómico para prevenir doble-click
+    if (this._submitLock) return;
+    this._submitLock = true;
+
+    if (!this.selectedAccountId) {
+      this._submitLock = false;
+      return;
+    }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) {
+      this._submitLock = false;
+      return;
+    }
     const query = this.queryResult();
-    if (!query) { return; }
+    if (!query) {
+      this._submitLock = false;
+      return;
+    }
 
     this.isLoading.set(true);
     this.error.set(null);
@@ -722,7 +753,7 @@ export class PayServiceComponent implements OnInit {
       reference: query.reference,
       amount: query.amount_due,
       account_id: this.selectedAccountId,
-      idempotency_key: Date.now().toString(36),
+      idempotency_key: this._idempotencyKey, // UUID v4 generado al consultar
     };
 
     this.billpayService.payBill(orgId, body).subscribe({
@@ -730,10 +761,14 @@ export class PayServiceComponent implements OnInit {
         this.payResult.set(res.data);
         this.currentStep.set(3);
         this.isLoading.set(false);
+        this._submitLock = false;
       },
       error: () => {
         this.error.set('Error al procesar el pago. Por favor intenta de nuevo.');
         this.isLoading.set(false);
+        this._submitLock = false;
+        // Regenerar idempotency key al fallar para permitir reintento con nueva key
+        this._idempotencyKey = generateIdempotencyKey();
       },
     });
   }
@@ -742,6 +777,7 @@ export class PayServiceComponent implements OnInit {
   guardarServicio(): void {
     if (!this.serviceNickname.trim()) { return; }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     const query = this.queryResult();
     if (!query) { return; }
 

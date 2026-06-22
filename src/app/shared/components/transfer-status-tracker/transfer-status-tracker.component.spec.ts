@@ -34,26 +34,26 @@ describe('TransferStatusTrackerComponent', () => {
   });
 
   it('should show empty state when transfer is null and not loading', () => {
-    component.transfer = null;
-    component.isLoading = false;
+    fixture.componentRef.setInput('transfer', null);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.tracker-empty')).toBeTruthy();
   });
 
   it('should show skeleton when isLoading is true', () => {
-    component.isLoading = true;
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.tracker-body')).toBeTruthy();
   });
 
   it('should show tracker header when transfer is provided', () => {
-    component.transfer = makeTransfer();
+    fixture.componentRef.setInput('transfer', makeTransfer());
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.tracker-header')).toBeTruthy();
   });
 
   it('should emit refreshRequested when refresh button clicked', () => {
-    component.transfer = makeTransfer();
+    fixture.componentRef.setInput('transfer', makeTransfer());
     fixture.detectChanges();
 
     let emitted = false;
@@ -66,25 +66,25 @@ describe('TransferStatusTrackerComponent', () => {
   });
 
   it('should show auto-refresh bar for PENDING status', () => {
-    component.transfer = makeTransfer({ status: 'PENDING' });
+    fixture.componentRef.setInput('transfer', makeTransfer({ status: 'PENDING' }));
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.auto-refresh-bar')).toBeTruthy();
   });
 
   it('should show auto-refresh bar for PROCESSING status', () => {
-    component.transfer = makeTransfer({ status: 'PROCESSING' });
+    fixture.componentRef.setInput('transfer', makeTransfer({ status: 'PROCESSING' }));
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.auto-refresh-bar')).toBeTruthy();
   });
 
   it('should not show auto-refresh bar for COMPLETED status', () => {
-    component.transfer = makeTransfer({ status: 'COMPLETED' });
+    fixture.componentRef.setInput('transfer', makeTransfer({ status: 'COMPLETED' }));
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.auto-refresh-bar')).toBeNull();
   });
 
   it('should show error box when status is FAILED and error_message is set', () => {
-    component.transfer = makeTransfer({ status: 'FAILED', error_message: 'Fondos insuficientes' });
+    fixture.componentRef.setInput('transfer', makeTransfer({ status: 'FAILED', error_message: 'Fondos insuficientes' }));
     fixture.detectChanges();
     const errorBox = (fixture.nativeElement as HTMLElement).querySelector('.error-box');
     expect(errorBox).toBeTruthy();

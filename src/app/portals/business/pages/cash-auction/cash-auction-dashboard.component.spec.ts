@@ -132,4 +132,63 @@ describe('CashAuctionDashboardComponent', () => {
     fixture.detectChanges();
     expect(component.isLoading()).toBeFalse();
   });
+
+  it('debe manejar error generico cuando falla sin message', async () => {
+    mockAuctionService.listAvailableOffers.and.returnValue(throwError(() => ({})));
+    const fix2 = TestBed.createComponent(CashAuctionDashboardComponent);
+    fix2.detectChanges();
+    await fix2.whenStable();
+    expect(fix2.componentInstance.error()).toContain('Error al cargar');
+  });
+
+  it('debe manejar error al cargar mis ofertas silenciosamente', async () => {
+    mockAuctionService.listMyOffers.and.returnValue(throwError(() => new Error('err')));
+    const fix3 = TestBed.createComponent(CashAuctionDashboardComponent);
+    fix3.detectChanges();
+    await fix3.whenStable();
+    expect(fix3.componentInstance.myOffers()).toEqual([]);
+    expect(fix3.componentInstance.isLoading()).toBeFalse();
+  });
+
+  it('cancelOffer no ejecuta si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    mockAuctionService.cancelOffer.calls.reset();
+    component.cancelOffer(mockOffer);
+    expect(mockAuctionService.cancelOffer).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('cancelOffer maneja error sin crashear', () => {
+    mockAuctionService.cancelOffer.and.returnValue(throwError(() => new Error('err')));
+    component.myOffers.set([mockOffer]);
+    component.cancelOffer(mockOffer);
+    // Should not throw
+  });
+
+  it('debe manejar null data en respuestas', async () => {
+    mockAuctionService.listAvailableOffers.and.returnValue(of({ success: true, data: null } as any));
+    mockAuctionService.listMyOffers.and.returnValue(of({ success: true, data: null } as any));
+    const fix4 = TestBed.createComponent(CashAuctionDashboardComponent);
+    fix4.detectChanges();
+    await fix4.whenStable();
+    expect(fix4.componentInstance.marketOffers()).toEqual([]);
+    expect(fix4.componentInstance.myOffers()).toEqual([]);
+  });
+
+  it('loadData debe recargar datos', () => {
+    mockAuctionService.listAvailableOffers.calls.reset();
+    component.loadData();
+    expect(mockAuctionService.listAvailableOffers).toHaveBeenCalled();
+  });
+
+  it('debe cargar sin orgId (no carga myOffers)', async () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    mockAuctionService.listMyOffers.calls.reset();
+    component.loadData();
+    await fixture.whenStable();
+    expect(mockAuctionService.listMyOffers).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
 });

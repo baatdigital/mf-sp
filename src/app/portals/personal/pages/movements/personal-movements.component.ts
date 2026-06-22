@@ -183,7 +183,7 @@ type FilterType = 'all' | 'credits' | 'debits';
     .table-wrapper {
       background: white;
       border-radius: 12px;
-      overflow: hidden;
+      overflow-x: auto;
       box-shadow: 0 1px 4px rgba(0,0,0,0.07);
     }
 

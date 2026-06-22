@@ -458,6 +458,7 @@ export class NotificationDashboardComponent implements OnInit, OnDestroy {
 
   private loadHistory(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.error.set(null);
 
     this.notifService
@@ -479,6 +480,7 @@ export class NotificationDashboardComponent implements OnInit, OnDestroy {
     this.stopPolling();
     this.pollInterval = setInterval(() => {
       const orgId = this.sharedState.currentOrganizationId();
+      if (!orgId) return;
       this.notifService
         .getNotificationHistory(orgId, 50)
         .pipe(takeUntil(this.destroy$))

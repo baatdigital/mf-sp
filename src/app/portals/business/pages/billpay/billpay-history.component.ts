@@ -587,6 +587,7 @@ export class BillpayHistoryComponent implements OnInit {
 
   loadHistory(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
     this.error.set(null);
 

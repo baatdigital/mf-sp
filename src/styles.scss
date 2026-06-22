@@ -15,3 +15,197 @@ body {
 .sp-page {
   padding: 24px;
 }
+
+// ─── Breakpoints SuperPago ────────────────────────────────────────
+// Uso: @include mobile { ... }  → ≤430px
+//       @include tablet { ... } → 431px–1023px
+//       @include desktop { ... }→ ≥1024px
+// Siempre diseñar mobile-first: estilos base = móvil, override con tablet/desktop.
+
+$bp-sm:  430px;
+$bp-md:  768px;
+$bp-lg: 1024px;
+$bp-xl: 1280px;
+
+@mixin mobile {
+  @media (max-width: #{$bp-sm}) { @content; }
+}
+
+@mixin tablet {
+  @media (min-width: #{$bp-sm + 1px}) and (max-width: #{$bp-lg - 1px}) { @content; }
+}
+
+@mixin tablet-up {
+  @media (min-width: #{$bp-md}) { @content; }
+}
+
+@mixin desktop {
+  @media (min-width: #{$bp-lg}) { @content; }
+}
+
+@mixin desktop-wide {
+  @media (min-width: #{$bp-xl}) { @content; }
+}
+
+// ─── Sección B CSS-puro — utilidades canónicas sp-* ──────────────
+
+/* xs: 360px | sm: 430px | md: 768px | lg: 1024px | xl: 1280px */
+
+/* ── Tabla responsive ──────────────────────────────────────────────
+   OBLIGATORIO: toda <table> va dentro de <div class="sp-table-wrap">
+   ─────────────────────────────────────────────────────────────────── */
+.sp-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-left: -1rem;
+  margin-right: -1rem;
+}
+
+@media (min-width: 430px) {
+  .sp-table-wrap {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e2e8f0);
+  }
+}
+
+.sp-table-wrap table,
+.sp-table-wrap .sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+  min-width: 36rem;
+}
+
+@media (min-width: 430px) {
+  .sp-table-wrap table,
+  .sp-table-wrap .sp-table {
+    min-width: 0;
+  }
+}
+
+/* ── Contenedor de página ──────────────────────────────────────────
+   Usar en el div raíz de cada página/componente de ruta.
+   ─────────────────────────────────────────────────────────────────── */
+.sp-page-shell {
+  width: 100%;
+  max-width: 1152px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 1rem;
+}
+
+@media (min-width: 430px) {
+  .sp-page-shell {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-page-shell {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* ── Encabezado de página: título + acciones ──────────────────────
+   Apila en móvil (columna), fila en sm+.
+   ─────────────────────────────────────────────────────────────────── */
+.sp-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 430px) {
+  .sp-page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* ── Fila de botones de acción ────────────────────────────────────
+   flex-col-reverse: en móvil el CTA principal (último en DOM) aparece arriba.
+   ─────────────────────────────────────────────────────────────────── */
+.sp-actions-row {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+}
+
+.sp-actions-row button,
+.sp-actions-row a,
+.sp-actions-row .sp-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (min-width: 430px) {
+  .sp-actions-row {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .sp-actions-row button,
+  .sp-actions-row a,
+  .sp-actions-row .sp-btn {
+    width: auto;
+  }
+}
+
+/* ── Grid de formulario responsive ──────────────────────────────────
+   1 columna en móvil, 2 columnas en md+ (768px+).
+   ─────────────────────────────────────────────────────────────────── */
+.sp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .sp-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Grid de tarjetas responsive ────────────────────────────────────
+   Usar en lugar de grid de columnas fijas.
+   ─────────────────────────────────────────────────────────────────── */
+.sp-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 430px) {
+  .sp-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── Utilidades de overflow seguro ──────────────────────────────────*/
+.sp-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.sp-break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

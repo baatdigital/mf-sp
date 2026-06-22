@@ -18,6 +18,6 @@ export const environment = {
     spOrganizationId: '39c56b2b-cbec-4645-b4b3-7b618e5a8888',
   },
 
-  // API Key para autenticacion con backend
-  apiKey: 'MASTER-SuperSecretKey123456789',
+  // API Key para autenticacion con backend (se inyecta en runtime via covacha:tenant)
+  apiKey: '',
 };

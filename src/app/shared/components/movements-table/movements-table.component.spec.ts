@@ -34,38 +34,38 @@ describe('MovementsTableComponent', () => {
   });
 
   it('should show empty state when entries array is empty and not loading', () => {
-    component.entries = [];
-    component.isLoading = false;
+    fixture.componentRef.setInput('entries', []);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.empty-state')).toBeTruthy();
   });
 
   it('should show skeleton rows when isLoading is true', () => {
-    component.isLoading = true;
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('.skeleton-row');
     expect(rows.length).toBe(3);
   });
 
   it('should hide empty state when isLoading is true', () => {
-    component.entries = [];
-    component.isLoading = true;
+    fixture.componentRef.setInput('entries', []);
+    fixture.componentRef.setInput('isLoading', true);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.empty-state')).toBeNull();
   });
 
   it('should render one row per entry', () => {
-    component.entries = [makeLedgerEntry(), makeLedgerEntry({ entry_id: 'entry-002' })];
-    component.isLoading = false;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry(), makeLedgerEntry({ entry_id: 'entry-002' })]);
+    fixture.componentRef.setInput('isLoading', false);
     fixture.detectChanges();
     const rows = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
     expect(rows.length).toBe(2);
   });
 
   it('should show account column when showAccountColumn is true', () => {
-    component.entries = [makeLedgerEntry()];
-    component.showAccountColumn = true;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('showAccountColumn', true);
     fixture.detectChanges();
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll('th');
     const headerTexts = Array.from(headers).map(h => h.textContent?.trim());
@@ -73,8 +73,8 @@ describe('MovementsTableComponent', () => {
   });
 
   it('should hide account column when showAccountColumn is false', () => {
-    component.entries = [makeLedgerEntry()];
-    component.showAccountColumn = false;
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('showAccountColumn', false);
     fixture.detectChanges();
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll('th');
     const headerTexts = Array.from(headers).map(h => h.textContent?.trim());
@@ -107,5 +107,33 @@ describe('MovementsTableComponent', () => {
   it('trackById should return entry_id', () => {
     const entry = makeLedgerEntry({ entry_id: 'e99' });
     expect(component.trackById(0, entry)).toBe('e99');
+  });
+
+  // ─── Regresión responsive (ISS-000) ─────────────────────────────
+  // Verifica que el contenedor de tabla tiene overflow-x:auto (no hidden)
+  // y que las tablas están dentro de un wrapper con scroll horizontal.
+  it('[responsive] container should have overflow-x:auto, not overflow:hidden', () => {
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('isLoading', false);
+    fixture.detectChanges();
+    const container = (fixture.nativeElement as HTMLElement).querySelector(
+      '.movements-table-container'
+    ) as HTMLElement | null;
+    expect(container).toBeTruthy();
+    const style = getComputedStyle(container!);
+    // overflow:hidden en un wrapper de tabla causa scroll horizontal en la página.
+    // El valor debe ser 'auto' o 'scroll', nunca 'hidden'.
+    expect(style.overflowX).not.toBe('hidden');
+  });
+
+  it('[responsive] data table should be a descendant of the scrollable container', () => {
+    fixture.componentRef.setInput('entries', [makeLedgerEntry()]);
+    fixture.componentRef.setInput('isLoading', false);
+    fixture.detectChanges();
+    const container = (fixture.nativeElement as HTMLElement).querySelector(
+      '.movements-table-container'
+    );
+    const table = container?.querySelector('table.movements-table');
+    expect(table).toBeTruthy();
   });
 });

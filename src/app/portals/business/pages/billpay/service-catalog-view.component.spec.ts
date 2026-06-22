@@ -97,7 +97,7 @@ describe('ServiceCatalogViewComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    component.searchQuery = 'telm';
+    component.searchQuery.set('telm');
     fixture.detectChanges();
 
     expect(component.filteredServices().length).toBe(1);
@@ -108,7 +108,7 @@ describe('ServiceCatalogViewComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    component.searchQuery = 'servicio_inexistente_xyz';
+    component.searchQuery.set('servicio_inexistente_xyz');
     fixture.detectChanges();
 
     expect(component.filteredServices().length).toBe(0);
@@ -117,10 +117,10 @@ describe('ServiceCatalogViewComponent', () => {
   it('debe limpiar la busqueda al llamar clearSearch()', async () => {
     await fixture.whenStable();
 
-    component.searchQuery = 'algo';
+    component.searchQuery.set('algo');
     component.clearSearch();
 
-    expect(component.searchQuery).toBe('');
+    expect(component.searchQuery()).toBe('');
   });
 
   it('debe usar catalogo estatico de fallback cuando el API falla', async () => {

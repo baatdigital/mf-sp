@@ -182,4 +182,98 @@ describe('SavedServicesComponent', () => {
     expect(component.getServiceEmoji('TELMEX')).toBe('📡');
     expect(component.getServiceEmoji('DESCONOCIDO')).toBe('🔧');
   });
+
+  it('toggleAddForm alterna visibilidad del formulario', () => {
+    expect(component.showAddForm()).toBeFalse();
+    component.toggleAddForm();
+    expect(component.showAddForm()).toBeTrue();
+    component.toggleAddForm();
+    expect(component.showAddForm()).toBeFalse();
+  });
+
+  it('toggleAddForm limpia errores y exitos', () => {
+    component.addError.set('algun error');
+    component.addSuccess.set('exito');
+    component.toggleAddForm();
+    expect(component.addError()).toBeNull();
+    expect(component.addSuccess()).toBeNull();
+  });
+
+  it('agregarServicio no ejecuta si nickname esta vacio', () => {
+    component.newNickname = '';
+    component.newServiceId = 'CFE';
+    component.newReference = '12345';
+    component.agregarServicio();
+    expect(mockSavedServiceApi.saveService).not.toHaveBeenCalled();
+  });
+
+  it('agregarServicio no ejecuta si serviceId esta vacio', () => {
+    component.newNickname = 'Test';
+    component.newServiceId = '';
+    component.newReference = '12345';
+    component.agregarServicio();
+    expect(mockSavedServiceApi.saveService).not.toHaveBeenCalled();
+  });
+
+  it('agregarServicio no ejecuta si reference esta vacio', () => {
+    component.newNickname = 'Test';
+    component.newServiceId = 'CFE';
+    component.newReference = '';
+    component.agregarServicio();
+    expect(mockSavedServiceApi.saveService).not.toHaveBeenCalled();
+  });
+
+  it('agregarServicio no ejecuta si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.newNickname = 'Test';
+    component.newServiceId = 'CFE';
+    component.newReference = '12345';
+    component.agregarServicio();
+    expect(mockSavedServiceApi.saveService).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('agregarServicio muestra error cuando falla', async () => {
+    mockSavedServiceApi.saveService.and.returnValue(throwError(() => new Error('err')));
+    component.newNickname = 'Test';
+    component.newServiceId = 'CFE';
+    component.newReference = '12345';
+    component.agregarServicio();
+    await fixture.whenStable();
+    expect(component.addError()).toBeTruthy();
+    expect(component.isAdding()).toBeFalse();
+  });
+
+  it('eliminarServicio no ejecuta si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    component.eliminarServicio('SAV-001');
+    expect(mockSavedServiceApi.deleteSavedService).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('eliminarServicio maneja error sin crashear', async () => {
+    mockSavedServiceApi.deleteSavedService.and.returnValue(throwError(() => new Error('err')));
+    component.eliminarServicio('SAV-001');
+    await fixture.whenStable();
+    expect(component.isDeleting()).toBeFalse();
+    expect(component.confirmDeleteId()).toBeNull();
+  });
+
+  it('loadSavedServices no ejecuta si no hay orgId', () => {
+    const origOrgId = mockSharedState.currentOrganizationId;
+    (mockSharedState as any).currentOrganizationId = () => null;
+    mockSavedServiceApi.getSavedServices.calls.reset();
+    component.loadSavedServices();
+    expect(mockSavedServiceApi.getSavedServices).not.toHaveBeenCalled();
+    (mockSharedState as any).currentOrganizationId = origOrgId;
+  });
+
+  it('loadSavedServices maneja data null', async () => {
+    mockSavedServiceApi.getSavedServices.and.returnValue(of({ success: true, data: null }));
+    component.loadSavedServices();
+    await fixture.whenStable();
+    expect(component.savedServices()).toEqual([]);
+  });
 });

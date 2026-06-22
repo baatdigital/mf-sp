@@ -281,7 +281,7 @@ import { LedgerEntry } from '../../../../domain/models/ledger-entry.model';
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 10px;
-      overflow: hidden;
+      overflow-x: auto;
     }
 
     /* Pagination */

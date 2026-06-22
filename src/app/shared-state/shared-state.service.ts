@@ -149,6 +149,27 @@ export class SharedStateService {
     );
   }
 
+  /**
+   * Limpia la sesión del usuario (auth + user + tenant).
+   * Usado por el interceptor al recibir 401 Unauthorized.
+   *
+   * Nota: Aunque el MF es "solo lectura", un 401 es una excepción de seguridad
+   * que requiere limpieza inmediata de localStorage.
+   */
+  clearSession(): void {
+    try {
+      localStorage.removeItem('covacha:auth');
+      localStorage.removeItem('covacha:user');
+      localStorage.removeItem('covacha:tenant');
+    } catch {
+      // Ignore storage errors (ej. cookies blocked)
+    }
+    // Rehidratar con defaults
+    this._auth.set(DEFAULT_AUTH);
+    this._user.set(DEFAULT_USER);
+    this._tenant.set(DEFAULT_TENANT);
+  }
+
   // ============================================================================
   // LECTURA PRIVADA DE LOCALSTORAGE
   // ============================================================================
@@ -159,11 +180,17 @@ export class SharedStateService {
       if (!raw) return DEFAULT_AUTH;
       const data = JSON.parse(raw) as Record<string, unknown>;
       const token = (data['access_token'] ?? data['accessToken'] ?? null) as string | null;
+      const expiresAt = (data['expires_at'] ?? data['expiresAt'] ?? null) as number | null;
+
+      // DJ-FS-07: verificar expiracion del token — un token vencido no es autenticado
+      const now = Date.now();
+      const isExpired = expiresAt !== null && expiresAt < now;
+
       return {
-        isAuthenticated: !!token,
+        isAuthenticated: !!token && !isExpired,
         accessToken: token,
         refreshToken: (data['refresh_token'] ?? data['refreshToken'] ?? null) as string | null,
-        expiresAt: (data['expires_at'] ?? data['expiresAt'] ?? null) as number | null,
+        expiresAt,
       };
     } catch {
       return DEFAULT_AUTH;

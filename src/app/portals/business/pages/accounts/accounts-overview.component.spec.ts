@@ -48,7 +48,7 @@ describe('AccountsOverviewComponent', () => {
       of({ success: true, data: mockAccounts })
     );
     accountsAdapterSpy.getBalance.and.returnValue(
-      of({ success: true, data: { available_balance: 95000, frozen_balance: 500 } })
+      of({ success: true, data: { account_id: 'acc-1', balance: 100000, available_balance: 95000, frozen_balance: 500, currency: 'MXN', updated_at: '2025-01-01T00:00:00Z' } })
     );
 
     const sharedStateSpy = jasmine.createSpyObj('SharedStateService', [], {

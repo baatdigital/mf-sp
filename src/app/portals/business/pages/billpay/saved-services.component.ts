@@ -603,6 +603,7 @@ export class SavedServicesComponent implements OnInit {
 
   loadSavedServices(): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isLoading.set(true);
     this.error.set(null);
 
@@ -642,6 +643,7 @@ export class SavedServicesComponent implements OnInit {
       return;
     }
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isAdding.set(true);
     this.addError.set(null);
 
@@ -676,6 +678,7 @@ export class SavedServicesComponent implements OnInit {
 
   eliminarServicio(savedId: string): void {
     const orgId = this.sharedState.currentOrganizationId();
+    if (!orgId) return;
     this.isDeleting.set(true);
 
     this.billpayService.deleteSavedService(orgId, savedId).subscribe({

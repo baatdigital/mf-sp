@@ -33,8 +33,11 @@ export class HttpService {
 
     let headers = new HttpHeaders({
       'Content-Type': 'application/json',
-      'X-API-KEY': apiKey,
     });
+
+    if (apiKey) {
+      headers = headers.set('X-API-KEY', apiKey);
+    }
 
     if (token && token !== 'dev-token-for-testing') {
       headers = headers.set('Authorization', `Bearer ${token}`);
