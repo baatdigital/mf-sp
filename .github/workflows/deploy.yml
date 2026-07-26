@@ -1,0 +1,104 @@
+name: Deploy Micro-Frontend to CDN
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  MODULE_NAME: 'sp'
+  CDN_BUCKET: 'cdn-superpago-microfrontends'
+  AWS_REGION: 'us-east-1'
+  CLOUDFRONT_DISTRIBUTION_ID: 'E3A0H41AD1MAWR'
+
+concurrency:
+  group: deploy-cdn-${{ github.event.repository.name }}-${{ github.ref_name }}-prod
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Skip if commit superseded
+        id: guard
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          SHA="${{ github.sha }}"
+          git fetch origin "$BRANCH" --quiet
+          LATEST=$(git rev-parse origin/"$BRANCH")
+          if [ "$LATEST" = "$SHA" ]; then
+            echo "is_latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_latest=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Commit $SHA superseded by $LATEST on $BRANCH - skipping deploy"
+          fi
+
+      - name: Setup Node.js
+        if: steps.guard.outputs.is_latest == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        if: steps.guard.outputs.is_latest == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Build for production
+        if: steps.guard.outputs.is_latest == 'true'
+        run: yarn build:prod
+        env:
+          CI: true
+
+      - name: Prepare files for deploy
+        if: steps.guard.outputs.is_latest == 'true'
+        run: |
+          cd dist/mf-${{ env.MODULE_NAME }}/browser
+          MAIN_FILE=$(ls main-*.js 2>/dev/null | head -1)
+          if [ -n "$MAIN_FILE" ]; then
+            echo "Renaming $MAIN_FILE to main.js"
+            cp "$MAIN_FILE" main.js
+          fi
+          echo "Files to deploy:"
+          ls -la
+
+      - name: Configure AWS credentials
+        if: steps.guard.outputs.is_latest == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        if: steps.guard.outputs.is_latest == 'true'
+        run: |
+          DEPLOY_PATH="mf/${{ env.MODULE_NAME }}"
+          echo "Deploying to s3://${{ env.CDN_BUCKET }}/${DEPLOY_PATH}"
+          aws s3 sync dist/mf-${{ env.MODULE_NAME }}/browser \
+            s3://${{ env.CDN_BUCKET }}/${DEPLOY_PATH} \
+            --delete \
+            --cache-control "public, max-age=300"
+
+      - name: Invalidate CloudFront cache
+        if: steps.guard.outputs.is_latest == 'true'
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/mf/${{ env.MODULE_NAME }}/*"
+
+      - name: Deploy summary
+        if: steps.guard.outputs.is_latest == 'true'
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Module** | mf-${{ env.MODULE_NAME }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **CDN URL** | https://mf.superpago.com.mx/mf/${{ env.MODULE_NAME }}/remoteEntry.json |" >> $GITHUB_STEP_SUMMARY
