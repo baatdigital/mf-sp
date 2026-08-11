@@ -1,0 +1,60 @@
+name: Back-merge main to develop
+
+# Mantiene develop >= main. Cada vez que main avanza (release, hotfix, o el
+# merge commit del auto-merge), abre/actualiza un PR back-merge main->develop.
+# Complemento BIDIRECCIONAL de auto-merge-develop-to-main.yml.
+#
+# Instalar en TODOS los repos con flujo develop->main (ver rules/branch-rules.yml).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  back-merge:
+    runs-on: [self-hosted, holding]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Abrir/actualizar PR back-merge main->develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Not every repo runs the develop->main flow (covacha-projects, for
+          # one, is main-only). Without this guard `git fetch origin develop`
+          # dies with "couldn't find remote ref develop" and, under `set -e`,
+          # takes the whole run down -- a red workflow that reports nothing
+          # actionable and buries the runs that do.
+          if ! git ls-remote --exit-code --heads origin develop >/dev/null 2>&1; then
+            echo "This repo has no develop branch: the develop->main flow does not apply here. Nothing to do."
+            exit 0
+          fi
+          git fetch origin develop main
+          # ¿develop ya tiene todo lo de main?
+          ahead=$(git rev-list --count origin/develop..origin/main)
+          if [ "$ahead" -eq 0 ]; then
+            echo "develop ya esta al dia con main. Nada que hacer."
+            exit 0
+          fi
+          echo "main esta $ahead commits adelante de develop. Abriendo back-merge."
+          existing=$(gh pr list --base develop --head main --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$existing" ]; then
+            echo "Ya existe PR back-merge #$existing."
+          else
+            gh pr create --base develop --head main \
+              --title "chore: back-merge main -> develop (anti-divergencia)" \
+              --body "Automatico: main avanzo $ahead commits. Back-merge para mantener develop >= main y evitar divergencia de ramas." \
+              || echo "No se pudo crear PR (¿sin diferencias o ya existe?)"
+            existing=$(gh pr list --base develop --head main --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+          fi
+          if [ -n "$existing" ]; then
+            gh pr merge "$existing" --merge --auto || echo "Auto-merge no habilitado (requiere resolver conflictos manualmente)."
+          fi
