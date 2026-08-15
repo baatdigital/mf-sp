@@ -1,10 +1,10 @@
 name: Back-merge main to develop
 
-# Mantiene develop >= main. Cada vez que main avanza (release, hotfix, o el
-# merge commit del auto-merge), abre/actualiza un PR back-merge main->develop.
-# Complemento BIDIRECCIONAL de auto-merge-develop-to-main.yml.
+# Keeps develop >= main. Every time main advances (release, hotfix, or the
+# auto-merge commit), opens/updates a back-merge PR main->develop.
+# BIDIRECTIONAL complement of auto-merge-develop-to-main.yml.
 #
-# Instalar en TODOS los repos con flujo develop->main (ver rules/branch-rules.yml).
+# Install on ALL repos with a develop->main flow (see rules/branch-rules.yml).
 
 on:
   push:
@@ -17,13 +17,24 @@ permissions:
 
 jobs:
   back-merge:
+    # mf-sp is one of the 35 repos whose GitHub Actions Cesar ordered
+    # stopped on 2026-08-04. A new/modified promotion workflow is active
+    # by default the moment it merges -- without this guard, simply
+    # re-enabling Actions on this repo would be enough to resume
+    # promoting between develop and main, unauthorized. See the
+    # 2026-08-15 incident on baatdigital/mf-invoicing (#797/#798) this
+    # closes the same gap for. `vars.PROMOTION_ENABLED` does not exist on
+    # this repo, so this is false and nothing runs, even a manual
+    # workflow_dispatch, until Cesar deliberately creates that repo
+    # variable.
+    if: vars.PROMOTION_ENABLED == 'true'
     runs-on: [self-hosted, holding]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Abrir/actualizar PR back-merge main->develop
+      - name: Open/update back-merge PR main->develop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -38,23 +49,23 @@ jobs:
             exit 0
           fi
           git fetch origin develop main
-          # ¿develop ya tiene todo lo de main?
+          # Does develop already have everything from main?
           ahead=$(git rev-list --count origin/develop..origin/main)
           if [ "$ahead" -eq 0 ]; then
-            echo "develop ya esta al dia con main. Nada que hacer."
+            echo "develop is already up to date with main. Nothing to do."
             exit 0
           fi
-          echo "main esta $ahead commits adelante de develop. Abriendo back-merge."
+          echo "main is $ahead commits ahead of develop. Opening back-merge."
           existing=$(gh pr list --base develop --head main --state open --json number -q '.[0].number' 2>/dev/null || echo "")
           if [ -n "$existing" ]; then
-            echo "Ya existe PR back-merge #$existing."
+            echo "Back-merge PR #$existing already exists."
           else
             gh pr create --base develop --head main \
-              --title "chore: back-merge main -> develop (anti-divergencia)" \
-              --body "Automatico: main avanzo $ahead commits. Back-merge para mantener develop >= main y evitar divergencia de ramas." \
-              || echo "No se pudo crear PR (¿sin diferencias o ya existe?)"
+              --title "chore: back-merge main -> develop (anti-divergence)" \
+              --body "Automatic: main advanced $ahead commits. Back-merge to keep develop >= main and avoid branch divergence." \
+              || echo "Could not create PR (no diff, or it already exists?)"
             existing=$(gh pr list --base develop --head main --state open --json number -q '.[0].number' 2>/dev/null || echo "")
           fi
           if [ -n "$existing" ]; then
-            gh pr merge "$existing" --merge --auto || echo "Auto-merge no habilitado (requiere resolver conflictos manualmente)."
+            gh pr merge "$existing" --merge --auto || echo "Auto-merge not enabled (requires manual conflict resolution)."
           fi
