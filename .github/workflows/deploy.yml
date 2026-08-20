@@ -1,10 +1,29 @@
 name: Deploy Micro-Frontend to CDN
 
+# Directive 2026-08-20 (Cesar): production is no longer deployed by pushing,
+# and every release carries a version. Directive 2026-08-20: "todo debe estar
+# en aws secrets" -- for a deploy credential the right answer is stronger than
+# a stored secret, it is no secret at all. This workflow authenticates with
+# GitHub OIDC against a role scoped to THIS repo's prefix and distribution, so
+# a copied workflow file cannot obtain another microfrontend's credentials.
+#
+#   push to main        -> build only, proves main compiles. Deploys nothing.
+#   workflow_dispatch   -> production, after a human approves the `production`
+#                          environment.
+#   release: published  -> same production path.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, semver with the v (e.g. v1.4.2)."
+        required: true
+  release:
+    types: [published]
+permissions:
+  id-token: write
+  contents: read
 
 env:
   NODE_VERSION: '20'
@@ -19,6 +38,11 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    # A push can never reach production. The environment gate stops even a
+    # human dispatch until it is approved, and the OIDC role will not issue
+    # credentials to a job running outside that environment.
+    if: github.event_name != 'push'
+    environment: production
     name: Build and Deploy
     runs-on: [self-hosted, holding]
 
@@ -73,8 +97,7 @@ jobs:
         if: steps.guard.outputs.is_latest == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::705262650738:role/superpago-gha-mf-sp
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to S3
@@ -86,6 +109,24 @@ jobs:
             s3://${{ env.CDN_BUCKET }}/${DEPLOY_PATH} \
             --delete \
             --cache-control "public, max-age=300"
+
+      - name: Keep an immutable copy of this version
+        env:
+          VERSION: ${{ inputs.version || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          case "$VERSION" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::Version '$VERSION' is not vMAJOR.MINOR.PATCH"; exit 1 ;;
+          esac
+          RELEASE="s3://${{ env.CDN_BUCKET }}/releases/sp/${VERSION}"
+          if [ -n "$(aws s3 ls "$RELEASE/" 2>/dev/null)" ]; then
+            echo "::error::$RELEASE already exists. A version is a promise about which bytes shipped; pick a new one."
+            exit 1
+          fi
+          aws s3 sync dist/mf-${{ env.MODULE_NAME }}/browser "$RELEASE" \
+            --cache-control "public, max-age=31536000, immutable"
+          echo "Rollback: re-sync $RELEASE over s3://${{ env.CDN_BUCKET }}/mf/sp"
 
       - name: Invalidate CloudFront cache
         if: steps.guard.outputs.is_latest == 'true'
