@@ -17,7 +17,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint",
-    "serve:mf": "http-server dist/mf-sp/browser -p 4210 --cors"
+    "serve:mf": "http-server dist/mf-sp/browser -p 4210 --cors",
+    "check:federation": "node scripts/check-federation-widening.js"
   },
   "dependencies": {
     "@angular-architects/native-federation": "21.2.5",
