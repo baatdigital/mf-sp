@@ -33,5 +33,10 @@ jobs:
         env:
           CHROME_BIN: /usr/bin/google-chrome-stable
 
+      - name: Federation publishes a major range, not an exact version
+        # A remote that demands an exact @angular/* version cannot share one
+        # copy with a host a patch away: both load their own Angular (NG0203)
+        # and the routes render as "Esta seccion no existe".
+        run: yarn check:federation
       - name: Build production
         run: yarn build:prod

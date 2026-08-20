@@ -1,6 +1,42 @@
 const { withNativeFederation, shareAll } = require('@angular-architects/native-federation/config');
 
-module.exports = withNativeFederation({
+
+/**
+ * Widen every shared @angular/* dep to its major range.
+ *
+ * `requiredVersion: 'auto'` copies the range from package.json verbatim, and
+ * these repos pin Angular EXACTLY. A singleton is deduped only when ONE copy
+ * satisfies every consumer, so the moment this remote and its host drift by a
+ * single patch, no copy satisfies both and TWO Angular instances load -> NG0203
+ * -> the remote never mounts and the shell renders "Esta seccion no existe -
+ * Puede que el modulo aun no este habilitado para tu organizacion", which blames
+ * entitlements and has nothing to do with them.
+ *
+ * The drift is not hypothetical: measured in production on 2026-08-20,
+ * mf-invoicing already published 21.2.19 while the mf-core shell demanded
+ * 21.2.18 exactly.
+ *
+ * This runs on the OUTPUT of withNativeFederation on purpose. Rewriting the
+ * shareAll() result does nothing: withNativeFederation re-resolves
+ * requiredVersion afterwards and puts the exact version straight back. The only
+ * place that proves which value actually ships is the generated
+ * dist/remoteEntry.json.
+ *
+ * Only @angular/* is widened: sharing two rxjs majors would be a real
+ * incompatibility, and rxjs already declares a range.
+ *
+ * Invariant: scripts/check-federation-widening.js (run by CI).
+ */
+function widenAngularToMajorRange(config) {
+  for (const [name, entry] of Object.entries(config.shared ?? {})) {
+    if (!name.startsWith('@angular/')) continue;
+    const major = String(entry.requiredVersion ?? '').match(/(\d+)\./);
+    if (major) entry.requiredVersion = `^${major[1]}.0.0`;
+  }
+  return config;
+}
+
+module.exports = widenAngularToMajorRange(withNativeFederation({
   name: 'mfSP',
 
   exposes: {
@@ -106,4 +142,4 @@ module.exports = withNativeFederation({
   features: {
     ignoreUnusedDeps: true,
   },
-});
+}));
