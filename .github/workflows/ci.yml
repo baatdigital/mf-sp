@@ -12,7 +12,14 @@ permissions:
 jobs:
   test:
     name: Lint + Test + Build
-    runs-on: [self-hosted, holding]
+    # GitHub-hosted, not [self-hosted, holding]: mf-sp is a PUBLIC repo, and
+    # the org's self-hosted runner groups have allows_public_repositories:false
+    # (correctly -- widening that would let any fork's workflow reach our
+    # runners). A public repo's jobs never get picked up by self-hosted
+    # runners, so this required check sat `queued` forever (PRs #42/#44 blocked
+    # 9-20h). ubuntu-latest is a GitHub-hosted runner, which public repos do
+    # get. See mf-sp#43 for the runner-visibility tradeoff this works around.
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -28,10 +35,22 @@ jobs:
       - name: Install
         run: yarn install --frozen-lockfile
 
+      - name: Resolve Chrome binary
+        id: chrome
+        # ubuntu-latest ships Chrome pre-installed (apt package
+        # google-chrome-stable), normally at the same path the old
+        # self-hosted runner used -- resolved via `which` instead of
+        # hardcoded, so a future runner-image change fails loud here
+        # instead of silently inside karma.
+        run: |
+          set -euo pipefail
+          bin="$(which google-chrome-stable || which google-chrome || which chromium-browser)"
+          echo "path=$bin" >> "$GITHUB_OUTPUT"
+
       - name: Unit tests (Karma headless)
         run: yarn test --browsers=ChromeHeadlessNoSandbox --watch=false --code-coverage
         env:
-          CHROME_BIN: /usr/bin/google-chrome-stable
+          CHROME_BIN: ${{ steps.chrome.outputs.path }}
 
       - name: Build production
         run: yarn build:prod
