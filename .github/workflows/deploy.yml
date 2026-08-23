@@ -9,8 +9,8 @@ on:
 env:
   NODE_VERSION: '20'
   MODULE_NAME: 'sp'
-  CDN_BUCKET: 'cdn-superpago-microfrontends'
-  AWS_REGION: 'us-east-1'
+  CDN_BUCKET: 'cdn-superpago-microfrontends-mx'
+  AWS_REGION: 'mx-central-1'
   CLOUDFRONT_DISTRIBUTION_ID: 'E3A0H41AD1MAWR'
 
 concurrency:
